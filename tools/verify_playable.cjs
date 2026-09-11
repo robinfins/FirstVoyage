@@ -115,16 +115,16 @@ test('Bazooka spends two bars, locks its aim and delivers one heavy hit',()=>{
  advance(g,.03);assert.equal(e.hp,100-SPECIALS.bazooka.damage*g.damage);
  advance(g,SPECIALS.bazooka.duration);assert.equal(g.player.special,null);
 });
-test('Gatling lasts three seconds, spends all bars and applies eighteen pulses',()=>{
+test('Gatling lasts 1.8 seconds, spends all bars and applies eighteen pulses',()=>{
  const g=fresh('dock');g.updateEnemy=()=>{};g.enemies=g.enemies.slice(0,1);const e=g.enemies[0];
- Object.assign(g.player,{x:300,y:430});Object.assign(e,{x:430,y:430,hp:100});g.meter=300;
+ Object.assign(g.player,{x:300,y:430});Object.assign(e,{x:430,y:430,hp:100});g.meter=300;g.buggyDefeated=true;
  assert(g.startSpecial('gatling',{x:600,y:404}));assert.equal(g.meter,0);
- advance(g,2.9);assert(g.player.special,'still performing before 3 seconds');assert.equal(e.hp,100-SPECIALS.gatling.pulses*SPECIALS.gatling.damage*g.damage);
+ advance(g,1.7);assert(g.player.special,'still performing before 1.8 seconds');assert.equal(e.hp,100-SPECIALS.gatling.pulses*SPECIALS.gatling.damage*g.damage);
  advance(g,.11);assert.equal(g.player.special,null);assert.equal(g.meter,0,'specials do not recharge the meter');
 });
 test('Special requirements, cancellation and death reset are enforced',()=>{
  const g=fresh('dock');g.meter=199;assert(!g.startSpecial('bazooka',{x:500,y:400}));assert.equal(g.meter,199);
- g.meter=300;g.player.grounded=false;assert(!g.startSpecial('gatling',{x:500,y:400}));assert.equal(g.meter,300);
+ g.buggyDefeated=true;g.meter=300;g.player.grounded=false;assert(!g.startSpecial('gatling',{x:500,y:400}));assert.equal(g.meter,300);
  g.player.grounded=true;assert(g.startSpecial('gatling',{x:500,y:400}));g.player.dashCd=0;g.player.airDash=true;
  g.step(DT,{dash:true});assert.equal(g.player.special,null);assert.equal(g.meter,0,'cancelled moves are not refunded');
  g.meter=300;g.player.dash=0;g.player.dashCd=0;g.player.airDash=true;g.player.grounded=true;g.player.attackCd=0;assert(g.startSpecial('gatling',{x:500,y:400}));g.die();assert.equal(g.meter,0);assert.equal(g.player.special,null);
@@ -132,3 +132,5 @@ test('Special requirements, cancellation and death reset are enforced',()=>{
 test('Old dropped berries relocate to reachable ground after a map revision',()=>{const save=validSave({version:1,checkpoint:{stage:'dock',id:'dock-a'},satchel:{stage:'dock',x:720,y:430,amount:17}});assert.equal(save.satchel.amount,17);assert(save.satchel.x<700);assert.equal(save.satchel.y,430);});
 test('Invalid save rejection',()=>{assert.equal(validSave({version:99}),null);assert.equal(validSave({version:1,checkpoint:{stage:'circus',id:'x'}}),null);});
 console.log('All challenge-update checks passed.');
+
+test('Gatling unlock persists and Buggy rematches do not repeat rewards',()=>{const g=fresh('circus');g.meter=300;assert(!g.startSpecial('gatling',{x:900,y:400}));assert.equal(g.meter,300);g.damageEnemy(g.boss,999,1);const saved=g.save();assert(new Game(saved).buggyDefeated);g.player.x=880;g.player.y=430;assert.equal(g.context().kind,'rematch');g.interact();assert.equal(g.boss.hp,84);assert.equal(g.boss.state,'idle');assert(g.buggyDefeated);g.damageEnemy(g.boss,999,1);assert.equal(g.berries,50);assert.equal(g.boss.state,'defeated');});

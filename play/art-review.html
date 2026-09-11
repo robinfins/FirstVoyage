@@ -1,0 +1,7 @@
+<!doctype html><meta charset="utf-8"><title>Terrain and punch review</title><style>body{background:#17243a;color:#f3dcae;font:16px monospace}canvas{display:block;image-rendering:pixelated;border:1px solid #657086;margin:16px}a{color:#f3dcae}</style><a href="./?build=terrain3">Play updated build →</a><p>Rail openings / punch wind-up, extension and recovery / terrain materials</p><canvas id="review" width="1100" height="620"></canvas><script src="special-art.js?v=terrain3"></script><script>
+const c=document.querySelector('canvas'),ctx=c.getContext('2d');ctx.imageSmoothingEnabled=false;
+Promise.all(['../assets/chapter-01/cleaned/luffy.png','../assets/chapter-01/layers/sunny-rails-foreground.png','../assets/chapter-01/terrain/pirate-terrain-atlas.png'].map(src=>new Promise(r=>{const i=new Image;i.onload=()=>r(i);i.src=src}))).then(([l,rails,terrain])=>{
+ctx.fillStyle='#af4472';ctx.fillRect(20,20,1050,90);ctx.drawImage(rails,232,402,760,46,20,20,1050,64);
+[.025,.065,.12,.17,.22].forEach((t,i)=>{SpecialArt.punch(ctx,l,{dx:1,dy:0,t},90+i*210,270,.24);ctx.fillStyle='#f3dcae';ctx.fillText(t+'s',75+i*210,300)});
+for(let i=0;i<4;i++)ctx.drawImage(terrain,(i%2)*terrain.width/2,Math.floor(i/2)*terrain.height/2,terrain.width/2,terrain.height/2,20+i*270,340,250,250);
+});</script>

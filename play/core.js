@@ -57,7 +57,7 @@ const TYPES={cutlass:{hp:5,speed:155,range:132,wind:.36,recover:.42,damage:1,jum
 const METER={max:300,bar:100,perHit:20};
 const SPECIALS={
  bazooka:{name:'Gum-Gum Bazooka',cost:200,duration:1.12,startup:.62,pulses:1,interval:0,reach:210,radius:35,damage:12},
- gatling:{name:'Gum-Gum Gatling',cost:300,duration:3,startup:.24,pulses:18,interval:.145,reach:165,radius:30,damage:1}
+ gatling:{name:'Gum-Gum Gatling',cost:300,duration:1.8,startup:.18,pulses:18,interval:.085,reach:165,radius:30,damage:1}
 };
 function validSave(raw) {
  if(!raw||raw.version!==1||!STAGES[raw.checkpoint?.stage])return null;
@@ -100,22 +100,26 @@ class Game {
   this.enemies=this.world.enemies.map((e,i)=>({...e,id:stage+'-'+i,y:e.y||430,home:e.x,vx:0,vy:0,grounded:true,platform:'',drop:0,aggro:0,navTimer:0,combo:0,hp:TYPES[e.type].hp,state:'idle',timer:.3+i*.2,facing:-1,hit:0,attackCount:0}));
   const spawn=this.world.spawn;this.player={x:back?this.world.width-150:spawn.x,y:spawn.y,vx:0,vy:0,w:22,h:45,grounded:true,facing:1,coyote:.1,jumpBuffer:0,dash:0,dashCd:0,airDash:true,invuln:.6,attack:null,special:null,attackCd:0,drop:0,stairs:false,platform:'',lastSafe:{x:spawn.x,y:spawn.y}};
   if(stage==='sunny')this.player.x=back?1240:400;
-  if(stage==='circus'&&!this.buggyDefeated)this.boss={x:880,y:430,hp:84,maxHp:84,state:'idle',timer:.65,phase:1,cycle:0,facing:-1,hit:0,attack:'knives',vx:0,vy:0,bag:[],previous:'',followup:false};
+  if(stage==='circus'&&!this.buggyDefeated)this.spawnBoss();
   this.emit('stage',{stage});
+ }
+ spawnBoss(){this.boss={x:880,y:430,hp:84,maxHp:84,state:'idle',timer:.65,phase:1,cycle:0,facing:-1,hit:0,attack:'knives',vx:0,vy:0,bag:[],previous:'',followup:false};
  }
  placeAtCheckpoint(){const cp=this.world.checkpoints.find(c=>c.id===this.checkpoint.id);if(cp){this.player.x=cp.x-45;this.player.y=cp.y;this.player.lastSafe={x:this.player.x,y:cp.y};}}
  transition(to){const order=['sunny','dock','streets','circus'];const back=order.indexOf(to)<order.indexOf(this.stage);this.loadStage(to,back);this.say(to==='circus'?'Buggy: “You picked the wrong circus!”':this.world.name,3);}
  context(){
   const p=this.player;if(this.dead)return null;
+  if(this.stage==='circus'&&this.buggyDefeated&&(!this.boss||this.boss.state==='defeated')&&Math.hypot(p.x-880,p.y-430)<65)return {kind:'rematch',x:880,y:430,label:'Challenge Buggy again'};
   if(this.satchel?.stage===this.stage&&Math.hypot(p.x-this.satchel.x,p.y-this.satchel.y)<56)return {kind:'satchel',label:'Recover '+this.satchel.amount+' berries',...this.satchel};
   for(const cp of this.world.checkpoints)if(Math.hypot(p.x-cp.x,p.y-cp.y)<62)return {kind:'checkpoint',label:'Press E to rest',...cp};
   for(const e of this.world.exits)if(Math.hypot(p.x-e.x,p.y-e.y)<65){
-   if(this.stage==='circus'&&!this.buggyDefeated)continue;
+   if(this.stage==='circus'&&this.boss&&this.boss.state!=='defeated')continue;
    return {kind:'exit',...e};
   }
   return null;
  }
  interact(){if(this.player.special)return;const c=this.context();if(!c)return;
+  if(c.kind==='rematch'){this.spawnBoss();this.projectiles=[];this.victoryTime=0;this.bossStarted=false;this.player.x=300;this.say('Buggy: Back for another round?',3);return;}
   if(c.kind==='checkpoint'){
    if(this.enemies.some(e=>e.hp>0&&Math.hypot(e.x-this.player.x,e.y-this.player.y)<185)){this.say('Defeat the nearby pirate before resting.');return;}
    this.checkpoint={stage:this.stage,id:c.id};this.hp=this.maxHp;this.projectiles=[];
@@ -137,6 +141,7 @@ class Game {
  gainMeter(){const before=this.meter;this.meter=Math.min(METER.max,this.meter+METER.perHit);if(Math.floor(before/100)<Math.floor(this.meter/100))this.emit('meter-bar',{bars:Math.floor(this.meter/100)});}
  startSpecial(kind,aim){const p=this.player,spec=SPECIALS[kind];
   if(!spec||this.dead||p.special)return false;
+  if(kind==='gatling'&&!this.buggyDefeated){this.say('Defeat Buggy to unlock Gum-Gum Gatling.',2);return false;}
   if(this.meter<spec.cost){this.say('Need '+spec.cost/100+' full bars.',1.4);return false;}
   if(!p.grounded||p.stairs){this.say('Land before using '+spec.name+'.',1.5);return false;}
   if(p.attack||p.attackCd>0||p.dash>0){this.say('Finish your current attack first.',1.2);return false;}
@@ -163,8 +168,8 @@ class Game {
   if(e===this.boss){if(e.hp===0)this.win();}
   else {e.vx+=dx*70;if(!e.hp){this.berries+=e.type==='brute'?8:5;this.emit('coin');}}
  }
- win(){if(this.buggyDefeated)return;this.buggyDefeated=true;this.damage=2;this.berries+=50;this.projectiles=[];this.bossStarted=false;this.victoryTime=5;
-  this.boss.state='defeated';this.boss.y=this.world.floor;this.boss.vy=0;this.say('BUGGY DEFEATED · Gum-Gum Pistol strengthened! +50 berries',7);this.requestSave();this.emit('victory');}
+ win(){if(!this.boss||this.boss.state==='defeated')return;const firstWin=!this.buggyDefeated;this.buggyDefeated=true;this.damage=2;if(firstWin)this.berries+=50;this.projectiles=[];this.bossStarted=false;this.victoryTime=5;
+  this.boss.state='defeated';this.boss.y=this.world.floor;this.boss.vy=0;this.say(firstWin?'BUGGY DEFEATED · Gatling unlocked! Pistol strengthened · +50 berries':'BUGGY DEFEATED · Rematch won!',7);this.requestSave();this.emit('victory');}
  step(dt,input={}){
   dt=clamp(dt,0,1/30);this.time+=dt;this.messageTime=Math.max(0,this.messageTime-dt);this.victoryTime=Math.max(0,this.victoryTime-dt);
   this.effects=this.effects.filter(e=>(e.t-=dt)>0);

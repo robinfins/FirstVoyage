@@ -31,13 +31,32 @@ function draw(ctx,im,a,x,y,scale){
   if(a.t>.59&&a.t<.87){const f=(a.t-.59)/.28;ctx.save();ctx.translate(ox+a.dx*210,oy+a.dy*210);ctx.rotate(Math.atan2(a.dy,a.dx));ctx.strokeStyle=`rgba(255,227,159,${1-f})`;ctx.lineWidth=3;ctx.beginPath();ctx.ellipse(0,0,10+f*25,20+f*30,0,0,Math.PI*2);ctx.stroke();ctx.restore();}
  }else{
   body(ctx,im,x,y,scale,facing);
-  if(a.t<.17||a.t>2.94){for(const side of [-1,1]){const s=shoulder(side);arm(ctx,s.x,s.y,x-a.dx*22+nx*side*7,y-27-a.dy*22+ny*side*7,5);}return;}
+  if(a.t<.17||a.t>1.74){for(const side of [-1,1]){const s=shoulder(side);arm(ctx,s.x,s.y,x-a.dx*22+nx*side*7,y-27-a.dy*22+ny*side*7,5);}return;}
   // Staggered arms and fading echoes convey the barrage independently of damage ticks.
-  for(let j=5;j>=0;j--){const phase=((a.t-.17)*6.9-j*.16)%1;if(phase<0)continue;
+  for(let j=5;j>=0;j--){const phase=((a.t-.17)*11.75-j*.16)%1;if(phase<0)continue;
    const extension=25+140*Math.sin(phase*Math.PI),side=j%2?1:-1,spread=(j-2.5)*6,s=shoulder(side);
    arm(ctx,s.x,s.y,ox+a.dx*extension+nx*spread,oy+a.dy*extension+ny*spread,5,j<2?1:.18+(5-j)*.09);
   }
  }
+}
+function punch(ctx,im,a,x,y,scale,alpha=1){
+ ctx.save();ctx.translate(x,y);ctx.scale(scale/.14,scale/.14);x=0;y=0;scale=.14;
+ const facing=a.dx<0?-1:1,t=clamp(a.t/.25,0,1);
+ // Coil, snap to full reach, briefly hold the contact pose, then recover.
+ let reach=t<.2?-12*(t/.2):t<.5?-12+122*(1-Math.pow(1-(t-.2)/.3,3)):t<.62?110:110*Math.pow(1-(t-.62)/.38,2);
+ const lean=reach>0?Math.min(3,reach*.035):reach*.1;
+ ctx.save();ctx.globalAlpha=alpha;
+ const bx=x+facing*lean,sy=y-42,sx=bx+facing*3;
+ ctx.lineCap='round';ctx.strokeStyle='#282237';ctx.lineWidth=6;ctx.beginPath();ctx.moveTo(bx-facing*7,y-41);ctx.quadraticCurveTo(bx-facing*13,y-35,bx-facing*12,y-26);ctx.stroke();ctx.strokeStyle='#edb380';ctx.lineWidth=3;ctx.stroke();
+ body(ctx,im,bx,y,scale,facing);
+ const blend=clamp(reach/30,0,1),tx=sx+a.dx*reach,ty=sy+16*(1-blend)+a.dy*Math.max(0,reach);
+ // Bent elbow during wind-up straightens into a single rubber arm on release.
+ const ex=sx+a.dx*reach*.45-facing*7*(1-blend),ey=sy+(ty-sy)*.45+9*(1-blend);
+ ctx.lineCap='round';ctx.lineJoin='round';
+ for(const [color,width] of [['#282237',8],['#edb380',5]]){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(ex,ey,tx,ty);ctx.stroke();}
+ ctx.save();ctx.translate(tx,ty);ctx.rotate(Math.atan2(a.dy,a.dx));ctx.fillStyle='#282237';ctx.beginPath();ctx.moveTo(-4,-4);ctx.lineTo(4,-5);ctx.lineTo(7,-2);ctx.lineTo(7,3);ctx.lineTo(3,5);ctx.lineTo(-4,3);ctx.closePath();ctx.fill();ctx.fillStyle='#ffd19b';ctx.fillRect(-3,-3,8,6);ctx.fillStyle='#b87959';ctx.fillRect(2,-2,1,4);ctx.restore();
+ if(t>.28&&t<.6){ctx.strokeStyle='#ffe7b977';ctx.lineWidth=1;for(const n of [-1,1]){ctx.beginPath();ctx.moveTo(tx-a.dx*30-a.dy*n*7,ty-a.dy*30+a.dx*n*7);ctx.lineTo(tx-a.dx*12-a.dy*n*7,ty-a.dy*12+a.dx*n*7);ctx.stroke();}}
+ ctx.restore();ctx.restore();
 }
 function meter(ctx,value,time=0,x=20,y=68){
  for(let i=0;i<3;i++){const fraction=clamp((value-i*100)/100,0,1),left=x+i*84;
@@ -46,5 +65,5 @@ function meter(ctx,value,time=0,x=20,y=68){
   if(fraction===1){ctx.fillStyle='#ffe4a6';ctx.globalAlpha=.35+.2*Math.sin(time*4);ctx.fillRect(left+3,y+3,73,9);ctx.globalAlpha=1;}
  }
 }
-root.SpecialArt={draw,meter};
+root.SpecialArt={draw,meter,punch};
 })(typeof window!=='undefined'?window:globalThis);

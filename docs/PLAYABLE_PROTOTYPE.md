@@ -31,7 +31,7 @@ Three segments sit directly below Luffy's health bar. Every successful ordinary 
 
 **Gum-Gum Bazooka** costs 200 charge. Both arms pull behind Luffy, then fire together after a readable 0.62-second wind-up. The single impact reaches 210 world pixels and deals 12 times the current ordinary-punch damage.
 
-**Gum-Gum Gatling** costs 300 charge. Luffy commits to an 18-hit barrage lasting exactly three seconds. The attack begins after 0.24 seconds, then applies one damage pulse every 0.145 seconds within a 165-pixel lane. It deals more total damage than Bazooka but leaves Luffy committed much longer.
+**Gum-Gum Gatling** unlocks permanently after defeating Buggy and costs 300 charge. Luffy commits to an 18-hit barrage lasting 1.8 seconds. The attack begins after 0.18 seconds, then applies one damage pulse every 0.085 seconds within a 165-pixel lane. It deals more total damage than Bazooka but leaves Luffy committed longer.
 
 Both moves require Luffy to be grounded and lock their direction when activated. Movement, jumping, ordinary attacks and interactions are unavailable during the move. Dash cancels either special when a dash is available; consumed bars are not refunded. The controls below the canvas show current charge and only enable a move when its cost and activation conditions are met.
 
@@ -77,3 +77,5 @@ Run `node tools/verify_playable.cjs`. All seventeen checks pass. The route check
 ## Current limits
 
 This is the first compact playable slice. This update raises combat pressure and traversal demands; difficulty still needs tuning from play sessions. The cleaned artwork still uses sparse key poses, so running and attack animation need additional drawings. Rubber punches and flying hazards use simple runtime shapes. Floor/platform art is provisional. The hub shop, inventory, crew conversations, controller/touch support, full audio, shortcut persistence and later bosses are future work. Gear 2 remains outside this chapter. Combat timings need human playtesting beyond the automated checks.
+
+Buggy can be challenged again by pressing E near his arena marker after victory. Rematches preserve the Gatling unlock and do not repeat the first-clear 50-berry reward.
