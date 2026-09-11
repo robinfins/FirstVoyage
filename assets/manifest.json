@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "generated_on": "2026-09-10",
+  "generator": "built-in image_gen",
+  "prompt_file": "GENERATION_PROMPTS.md",
+  "assets": [
+    {
+      "id": "buggy-arena-concept",
+      "file": "concepts/buggy-arena-concept.png",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "has_transparent_pixels": false,
+      "bytes": 2339810,
+      "sha256": "668f3f51f4ffe5a97df921bb1019fb7a06c42ab0f01d866901f1fffb73e07c44",
+      "status": "concept",
+      "notes": "Flattened boss arena concept; requires layer separation and collision design"
+    },
+    {
+      "id": "enemy-roster-concepts",
+      "file": "concepts/enemy-roster-concepts.png",
+      "width": 1991,
+      "height": 789,
+      "mode": "RGBA",
+      "has_transparent_pixels": true,
+      "bytes": 1023974,
+      "sha256": "32d1c27b1c660abaa5f01f3d844e5b640ce749a4b37131a0d35268fddd6b75c5",
+      "status": "concept",
+      "notes": "Transparent character lineup; requires pixel cleanup, registration and animation"
+    },
+    {
+      "id": "luffy-action-sheet",
+      "file": "concepts/luffy-action-sheet.png",
+      "width": 1536,
+      "height": 1024,
+      "mode": "RGB",
+      "has_transparent_pixels": false,
+      "bytes": 1863221,
+      "sha256": "911e75f0480ce6157e6fbe5a9b2693fcee16ef63901dc6267d2807c37321bfbb",
+      "status": "concept",
+      "notes": "Six key-pose references; opaque checkerboard needs removal; not an animation atlas"
+    },
+    {
+      "id": "sunny-hub-concept",
+      "file": "concepts/sunny-hub-concept.png",
+      "width": 1672,
+      "height": 941,
+      "mode": "RGB",
+      "has_transparent_pixels": false,
+      "bytes": 2390861,
+      "sha256": "2f98320907ccc4416604e726f9efe1929ad44efb72ef2f77d9b1a2ef9bcc0d24",
+      "status": "concept",
+      "notes": "Flattened hub environment concept; requires layer separation and collision design"
+    }
+  ]
+}

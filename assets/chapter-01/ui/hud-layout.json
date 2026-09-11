@@ -1,0 +1,48 @@
+{
+  "viewport": [
+    640,
+    360
+  ],
+  "player": {
+    "frame": "player-frame.svg",
+    "fill": "player-fill.svg",
+    "frame_size": [
+      204,
+      36
+    ],
+    "fill_rect": [
+      38,
+      12,
+      152,
+      12
+    ],
+    "screen_anchor": [
+      12,
+      12
+    ],
+    "starting_max_health": 5,
+    "segments": 5
+  },
+  "boss": {
+    "frame": "boss-frame.svg",
+    "fill": "boss-fill.svg",
+    "frame_size": [
+      460,
+      32
+    ],
+    "fill_rect": [
+      24,
+      12,
+      412,
+      8
+    ],
+    "screen_anchor": [
+      90,
+      314
+    ],
+    "label": "BUGGY THE CLOWN",
+    "trail_delay_seconds": 0.35
+  },
+  "fill_behavior": "clip width from left by clamp(current / maximum, 0, 1); keep frame unchanged",
+  "screen_space": true
+}

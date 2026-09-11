@@ -1,0 +1,155 @@
+{
+  "sunny-flag-cycle": {
+    "file": "cleaned/sunny-flag-cycle.png",
+    "frames": [
+      [
+        0,
+        0,
+        512,
+        448
+      ],
+      [
+        512,
+        0,
+        512,
+        448
+      ],
+      [
+        1024,
+        0,
+        512,
+        448
+      ],
+      [
+        1536,
+        0,
+        512,
+        448
+      ]
+    ],
+    "cell_size": [
+      512,
+      448
+    ],
+    "pivot": [
+      16,
+      64
+    ]
+  },
+  "checkpoint-snail": {
+    "file": "cleaned/checkpoint-snail.png",
+    "frames": [
+      [
+        0,
+        0,
+        576,
+        704
+      ],
+      [
+        576,
+        0,
+        576,
+        704
+      ],
+      [
+        1152,
+        0,
+        576,
+        704
+      ],
+      [
+        1728,
+        0,
+        576,
+        704
+      ]
+    ],
+    "cell_size": [
+      576,
+      704
+    ],
+    "pivot": [
+      288,
+      656
+    ]
+  },
+  "ocean-wave-cycle": {
+    "file": "cleaned/ocean-wave-cycle.png",
+    "frames": [
+      [
+        0,
+        0,
+        768,
+        64
+      ],
+      [
+        0,
+        64,
+        768,
+        64
+      ],
+      [
+        0,
+        128,
+        768,
+        64
+      ],
+      [
+        0,
+        192,
+        768,
+        64
+      ]
+    ],
+    "cell_size": [
+      768,
+      64
+    ],
+    "pivot": [
+      0,
+      26
+    ],
+    "base_color": "#082740",
+    "source_registration": [
+      {
+        "source_band": [
+          0,
+          152,
+          1536,
+          114
+        ],
+        "source_surface_median": 211
+      },
+      {
+        "source_band": [
+          0,
+          380,
+          1536,
+          136
+        ],
+        "source_surface_median": 467
+      },
+      {
+        "source_band": [
+          0,
+          620,
+          1536,
+          159
+        ],
+        "source_surface_median": 722
+      },
+      {
+        "source_band": [
+          0,
+          871,
+          1536,
+          147
+        ],
+        "source_surface_median": 948
+      }
+    ],
+    "stage_scope": [
+      "sunny"
+    ]
+  }
+}
