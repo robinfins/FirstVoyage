@@ -35,6 +35,10 @@ Three segments sit directly below Luffy's health bar. Every successful ordinary 
 
 Both moves require Luffy to be grounded and lock their direction when activated. Movement, jumping, ordinary attacks and interactions are unavailable during the move. Dash cancels either special when a dash is available; consumed bars are not refunded. The controls below the canvas show current charge and only enable a move when its cost and activation conditions are met.
 
+## Heads-up display
+
+One console in the upper-left carries the straw-hat crest, Luffy's name, the berry count, current/maximum health, the five-segment health track, the three special segments, the dash cooldown and both special-move keys. The health track pulses its rim at one health point. A full special segment shimmers. Gum-Gum Gatling shows a padlock until Buggy is defeated, and a `PISTOL+` stamp appears below the console once punch damage is doubled. The boss console at the bottom of the screen uses the same plate, lettering and palette: Buggy's name, the current phase, a red health fill, a pale trail that drains a beat later so a heavy hit stays readable, and a gold tick at the half-health point where he splits into phase two. It appears only once the encounter starts.
+
 ## Challenge update
 
 The world camera is now 1.35× closer while health bars stay the same screen size. Mouse aiming is converted through that zoom. The game shows only short interaction prompts such as **Press E to rest**; stairs have no tooltip. Travel destinations, region names, notifications and controls live below the canvas. Attacks use poses, warning flashes and ground markers instead of instructional labels.
@@ -56,7 +60,7 @@ Rest restores all five health points and respawns ordinary pirates. A nearby pir
 
 The ship is larger than the art-study composition, with a camera following Luffy across its interior. Luffy is slightly smaller on the Sunny. Both deck floors have collision surfaces aligned with the grass artwork; the stairs connect them. The flag now sits on a pole mounted on the lantern above the round rear roof. The camera pans upward as Luffy reaches the upper deck, revealing that roof and flag.
 
-Ship art, local props and Luffy share a gentle visual bob. Gameplay uses stable ship-local coordinates. Ocean animation remains independent and exclusive to the Sunny. The lower hull is masked by foreground waves; the deck stays clear.
+The deck railing stays in front of the crew. Its balusters stop at world y 397 while the deck runs to 407, and that bare strip used to leave Luffy's sandals visible below the railing, detached from the legs behind it. The bottom of the deck grass is now redrawn in front as well, closing the strip so he stands in the lawn with the railing crossing his shins. It reuses the ship layer's own draw call under a clip, so the foreground copy lands pixel-identical on the background one. Ship art, local props and Luffy share a gentle visual bob. Gameplay uses stable ship-local coordinates. Ocean animation remains independent and exclusive to the Sunny. The water now uses the camera factors from the chapter layer contract — 0.22 for the sea behind the ship, 1.08 for the foreground surf — instead of being pinned to the screen, so the waves hold their place in the world and the ship sails past them. The finite wave strip is mirror-tiled to cover the wider travel; alternate copies flip, so a join is continuous regardless of how the source edges meet. The lower hull is masked by foreground waves; the deck stays clear.
 
 ## Saving
 
@@ -69,7 +73,8 @@ The browser stores a versioned save under `straw-hat-first-voyage-v1`: last rest
 - `play/core.js`: browser-independent fixed-step gameplay, stage data, collision, combat, enemy states, checkpoints and save validation.
 - `play/game.js`: canvas renderer, keyboard/mouse input, camera, UI, audio feedback and local storage.
 - `play/index.html` / `play/style.css`: title screen, pause menu and controls.
-- `play/special-art.js`: articulated two-arm Bazooka and layered Gatling barrage animation, plus the segmented meter renderer.
+- `play/special-art.js`: articulated two-arm Bazooka and layered Gatling barrage animation.
+- `assets/chapter-01/ui/build_hud.py`: regenerates the HUD console, bar fills, pixel glyph strip and badges as transparent SVGs. Geometry is mirrored in `ui/hud-layout.json`; `drawHud` in `play/game.js` draws every piece at its authored size.
 - `tools/verify_playable.cjs`: seventeen checks cover movement, stairs, directional attacks, special charge/cost/timing/damage/cancellation, melee platform pursuit, attack wind-ups, impact bombs, moving-platform carrying, spikes, parkour reachability, checkpoint compatibility, boss variety, rewards and save validation.
 
 Run `node tools/verify_playable.cjs`. All seventeen checks pass. The route checks isolate traversal from combat; they demonstrate reachable jumps rather than a full human playthrough under enemy pressure. Human playtesting remains necessary.

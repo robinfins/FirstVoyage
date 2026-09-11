@@ -11,7 +11,7 @@ function load(key,path){return new Promise(resolve=>{const im=new Image();im.onl
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
 assets.push(['terrain','terrain/pirate-terrain-atlas.png'],['sunny-rails','layers/sunny-rails-foreground.png']);
-for(const name of ['player-frame','player-fill','boss-frame','boss-fill'])assets.push([name,'ui/'+name+'.svg']);
+for(const name of ['hud-console','hud-health-fill','hud-health-grid','hud-meter-fill','hud-meter-fill-hot','hud-dash-fill','hud-glyphs','hud-lock','hud-coin','hud-pistol-stamp','hud-boss-frame','hud-boss-fill','hud-boss-trail','hud-boss-grid'])assets.push([name,'ui/'+name+'.svg']);
 Promise.all(assets.map(([key,path])=>load(key,path))).then(results=>{
  const failures=results.filter(Boolean);if(failures.length){$('loading').textContent='Could not load '+failures.join(', ')+'. Reload to retry.';return;}
  loaded=true;$('loading').textContent='Crew ready. Click to begin.';$('start').disabled=false;
@@ -61,10 +61,22 @@ function frame(key,i,x,y,scale,flip=false,parts=false,alpha=1){const spec=PACK.s
  ctx.restore();}
 function text(label,x,y,size=12,color='#f7e8c4',align='left'){ctx.fillStyle=color;ctx.font=`${size>=16?'bold ':''}${size}px monospace`;ctx.textAlign=align;ctx.fillText(label,Math.round(x),Math.round(y));ctx.textAlign='left';}
 function plate(label,x,y,color='#f2cf83'){const width=label.length*6.7+18;ctx.fillStyle='#101b2ce8';ctx.fillRect(Math.round(x-width/2),Math.round(y-15),width,23);text(label,x,y,11,color,'center');}
+// Camera factors follow the CHAPTER_01 layer contract: distant sea 0.22, foreground surf 1.08.
+// The water is a finite strip, so it is mirror-tiled; alternate copies flip, and a mirrored join
+// is continuous whatever the source edges do.
+const SEA_SPAN=1200;
 function sea(y,rear=false){const i=Math.floor(game.time*4+(rear?0:2))%4;
- const drift=Math.sin(game.time*.23)*3-camera.x*.012,height=rear?40:86,top=y-26/64*height;
- const im=images['ocean-wave-cycle'];if(im)ctx.drawImage(im,...PACK.frames['ocean-wave-cycle'][i],Math.round(-100+drift),Math.round(top),1200,height);
- ctx.fillStyle='#082740';ctx.fillRect(0,Math.floor(top+height)-1,960,540);
+ const drift=Math.sin(game.time*(rear?.19:.23))*3-camera.x*(rear?.22:1.08);
+ const height=rear?40:86,top=Math.round(y-26/64*height),base=-100+drift;
+ const im=images['ocean-wave-cycle'];
+ if(im){const cell=PACK.frames['ocean-wave-cycle'][i];
+  for(let t=Math.floor(-base/SEA_SPAN);t<=Math.floor((VIEW_W-base)/SEA_SPAN);t++){
+   const x=Math.round(base+t*SEA_SPAN);
+   if(t&1){ctx.save();ctx.translate(x+SEA_SPAN,top);ctx.scale(-1,1);ctx.drawImage(im,...cell,0,0,SEA_SPAN,height);ctx.restore();}
+   else ctx.drawImage(im,...cell,x,top,SEA_SPAN,height);
+  }
+ }
+ ctx.fillStyle='#082740';ctx.fillRect(0,top+height-1,960,540);
 }
 function backgrounds(){const sunny=game.stage==='sunny';ctx.fillStyle='#182844';ctx.fillRect(0,0,960,540);image('sunset-sky',-30-camera.x*.025,-48,1040,590);
  if(sunny){image('distant-islands',-110-camera.x*.1,85,1240,270,.65);sea(400,true);}
@@ -108,7 +120,16 @@ function ship(){const bob=Math.sin(game.time*Math.PI*2/4.5)*1.5;
  const f=SHIP.flag,x=f.x-camera.x,y=f.y-camera.y+bob;ctx.fillStyle='#392e2b';ctx.fillRect(Math.round(x-2),Math.round(y-7),4,f.poleBottom-f.y+7);ctx.fillStyle='#d5aa62';ctx.fillRect(Math.round(x-1),Math.round(y-7),1,f.poleBottom-f.y+7);frame('sunny-flag-cycle',Math.floor(game.time*6)%4,x,y,.135);
  return bob;
 }
-function shipRails(bob){image('sunny-rails',-camera.x,bob-camera.y,1672*.9,941*.9);}
+// Source rows 448-457 of the ship layer hold the bottom of the upper-deck grass and the deck edge,
+// world y 403.2-411.3. Starting lower than the tuft tops keeps Luffy's legs readable.
+const DECK_GRASS={top:448*.9,height:9*.9};
+function shipRails(bob){image('sunny-rails',-camera.x,bob-camera.y,1672*.9,941*.9);
+ // The balusters stop at world y 397 but the deck runs to 407, and that bare strip let Luffy's
+ // sandals show through below the railing. Re-drawing the grass band in front closes it: the same
+ // draw call and rounding as the background pass, clipped, so the two copies land pixel-identical.
+ ctx.save();ctx.beginPath();ctx.rect(0,DECK_GRASS.top+bob-camera.y,VIEW_W,DECK_GRASS.height);ctx.clip();
+ image('sunny-ship-layer',-camera.x,bob-camera.y,1672*.9,941*.9);ctx.restore();
+}
 function drawCheckpoints(bob){for(const cp of game.world.checkpoints){frame('checkpoint-snail',2+Math.floor(game.time*1.5)%2,cp.x-camera.x,cp.y-camera.y+bob,.085);const active=cp.id===game.checkpoint.id;ctx.fillStyle=active?'#f8d68d':'#8ec9c9';ctx.beginPath();ctx.arc(cp.x-camera.x,cp.y-camera.y+bob-53,2.5,0,Math.PI*2);ctx.fill();}}
 function drawExits(bob){for(const e of game.world.exits){if(game.stage==='circus'&&game.boss&&game.boss.state!=='defeated')continue;
  const x=e.x-camera.x,y=e.y-camera.y+bob;ctx.fillStyle='#3c3031';ctx.fillRect(x-3,y-53,6,53);ctx.fillStyle='#d2a463';ctx.fillRect(x-20,y-55,42,23);text(e.to==='sunny'?'HOME':'→',x,y-39,13,'#2a2730','center');
@@ -158,11 +179,47 @@ function drawProjectiles(){for(const q of game.projectiles){const x=q.x-camera.x
  else if(q.kind==='bomb'){ctx.fillStyle='#202734';ctx.beginPath();ctx.arc(0,0,10,0,Math.PI*2);ctx.fill();ctx.fillStyle='#d9c49d';ctx.fillRect(-2,-15,4,7);ctx.fillStyle=Math.floor(game.time*12)%2?'#ffd071':'#ff794e';ctx.fillRect(-3,-19,6,6);}
  else{ctx.fillStyle='#ffb34c77';ctx.beginPath();ctx.arc(0,0,q.radius,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ffdd86';ctx.lineWidth=3;ctx.stroke();}
  ctx.restore();}}
-function drawHud(){image('player-frame',16,15,260,46);image('player-fill',65,30,194*game.hp/game.maxHp,15);ctx.fillStyle='#162133';for(let i=1;i<5;i++)ctx.fillRect(65+Math.round(194*i/5),30,2,15);ctx.fillRect(64,16,125,12);text('LUFFY  '+game.hp+'/'+game.maxHp,69,26,10);text('฿ '+game.berries+'   '+(game.damage>1?'PISTOL +':'GUM-GUM PISTOL'),20,118,11,'#efcf87');
-
- SpecialArt.meter(ctx,game.meter,game.time);text('Q  BAZOOKA · 2',20,98,9,game.meter>=200?'#ffe0a0':'#7f91a7');text(game.buggyDefeated?'R  GATLING · 3':'GATLING · LOCKED',152,98,9,game.buggyDefeated&&game.meter>=300?'#ffb780':'#7f91a7');
- const p=game.player;ctx.fillStyle='#1a2938';ctx.fillRect(20,130,100,4);ctx.fillStyle=p.dashCd>0?'#758ba4':'#8edbc8';ctx.fillRect(20,130,100*(1-p.dashCd/.65),4);text('DASH',126,135,9,'#b9cdd7');
- if(game.boss&&game.bossStarted){image('boss-frame',200,488,560,39);image('boss-fill',229,503,502*game.boss.hp/game.boss.maxHp,10);text('BUGGY THE CLOWN  ·  PHASE '+game.boss.phase,480,481,13,'#ffe3a4','center');}
+// Console geometry mirrors assets/chapter-01/ui/hud-layout.json; panel-relative, drawn 1:1.
+const HUD={x:16,y:14,w:300,h:100,health:[64,29,225,14],meter:[64,51,73,10],meterPitch:76,
+ dash:[64,67,187,4],valueRight:289,nameRow:10,lockGroup:[162,77,104,18],coin:[110,8],berries:[128,10],stamp:[16,120,66,22]};
+const BOSS={x:200,y:484,w:560,h:46,bar:[16,24,528,14],phase:[540,8]};
+let bossTrail=1;
+const GLYPH_ORDER='0123456789/+-x.';
+// Runtime numbers use the baked pixel strip so no HUD text falls back to the system font.
+function glyphs(value,x,y,align='left'){const s=String(value),im=images['hud-glyphs'];if(!im)return;
+ let cx=Math.round(align==='right'?x-(s.length*8-2):x);
+ for(const ch of s){const i=GLYPH_ORDER.indexOf(ch);if(i>=0)ctx.drawImage(im,i*8,0,6,10,cx,Math.round(y),6,10);cx+=8;}
+}
+function bar(key,px,py,full,fraction,height){const w=Math.round(full*clamp(fraction,0,1));
+ if(w>0&&images[key])ctx.drawImage(images[key],0,0,w,height,px,py,w,height);return w;}
+function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
+ image('hud-console',ox,oy,HUD.w,HUD.h);
+ const [hx,hy,hw,hh]=HUD.health;
+ bar('hud-health-fill',ox+hx,oy+hy,hw,game.hp/game.maxHp,hh);
+ // One health point left: pulse the track's rim so the empty segments still read as empty.
+ if(game.hp<=1&&!game.dead){ctx.save();ctx.globalAlpha=.35+.35*Math.sin(game.time*9);ctx.strokeStyle='#ff5f4a';ctx.lineWidth=2;ctx.strokeRect(ox+hx-2,oy+hy-2,hw+4,hh+4);ctx.restore();}
+ image('hud-health-grid',ox+hx,oy+hy,hw,hh);
+ glyphs(game.hp+'/'+game.maxHp,ox+HUD.valueRight,oy+HUD.nameRow,'right');
+ const [mx,my,mw,mh]=HUD.meter;
+ for(let i=0;i<3;i++){const left=ox+mx+i*HUD.meterPitch,fraction=clamp((game.meter-i*100)/100,0,1);
+  bar(i===2?'hud-meter-fill-hot':'hud-meter-fill',left,oy+my,mw,fraction,mh);
+  if(fraction===1){ctx.save();ctx.globalAlpha=.08+.08*Math.sin(game.time*5-i);ctx.fillStyle='#fff1c6';ctx.fillRect(left,oy+my,mw,mh);ctx.restore();}
+ }
+ const [dx,dy,dw,dh]=HUD.dash;ctx.save();ctx.globalAlpha=p.dashCd>0?.45:1;
+ bar('hud-dash-fill',ox+dx,oy+dy,dw,1-p.dashCd/.65,dh);ctx.restore();
+ if(!game.buggyDefeated){const [lx,ly,lw,lh]=HUD.lockGroup;
+  ctx.fillStyle='#0b1322cc';ctx.fillRect(ox+lx,oy+ly,lw,lh);ctx.strokeStyle='#2b3b55';ctx.lineWidth=1;ctx.strokeRect(ox+lx+.5,oy+ly+.5,lw-1,lh-1);
+  image('hud-lock',ox+lx+7,oy+ly+4,11,11);
+ }
+ image('hud-coin',ox+HUD.coin[0],oy+HUD.coin[1],14,14);glyphs(game.berries,ox+HUD.berries[0],oy+HUD.berries[1]);
+ if(game.damage>1)image('hud-pistol-stamp',...HUD.stamp);
+ if(game.boss&&game.bossStarted){const [fx,fy,fw,fh]=BOSS.bar;
+  image('hud-boss-frame',BOSS.x,BOSS.y,BOSS.w,BOSS.h);
+  bar('hud-boss-trail',BOSS.x+fx,BOSS.y+fy,fw,bossTrail,fh);
+  bar('hud-boss-fill',BOSS.x+fx,BOSS.y+fy,fw,game.boss.hp/game.boss.maxHp,fh);
+  image('hud-boss-grid',BOSS.x+fx,BOSS.y+fy,fw,fh);
+  glyphs(game.boss.phase,BOSS.x+BOSS.phase[0],BOSS.y+BOSS.phase[1]);
+ }
  const c=game.context();if(c){
   const label=c.kind==='checkpoint'?'Press E to rest':c.kind==='satchel'?'E · Recover':c.kind==='rematch'?'E · Rematch':'E · Travel';
   plate(label,clamp((c.x-camera.x)*ZOOM,90,870),(c.y-camera.y-68)*ZOOM);
@@ -188,6 +245,9 @@ function tick(now){const dt=Math.min(.1,(now-(last||now))/1000);last=now;
   game.step(1/120,{...pressed,left:keys.has('KeyA'),right:keys.has('KeyD'),up:keys.has('KeyW'),down:keys.has('KeyS'),aim:{x:pointer.x/ZOOM+camera.x,y:pointer.y/ZOOM+camera.y}});pressed={};processEvents();accumulator-=1/120;
  }const target=targetCamera();camera.x+=(target.x-camera.x)*Math.min(1,dt*6);camera.y+=(target.y-camera.y)*Math.min(1,dt*5);shake=Math.max(0,shake-dt);
  }else accumulator=0;
+ // Pale trail follows the red fill down, so a Bazooka's chunk of damage stays visible for a beat.
+ const bossHp=game.boss&&game.bossStarted?game.boss.hp/game.boss.maxHp:1;
+ bossTrail=bossHp>bossTrail?bossHp:Math.max(bossHp,bossTrail-dt*.5);
  render();statusTime+=dt;if(statusTime>.2){statusTime=0;$('status').textContent=started?game.world.name+' · Health '+game.hp+'/'+game.maxHp+' · '+game.berries+' berries'+(paused?' · Paused':''):'Ready at the Sunny';const zone=[...(game.world.zones||[])].reverse().find(z=>game.player.x>=z.x);const nearby=game.context();$('game-info').textContent=!saveAvailable?'Browser saving is unavailable. Keep this tab open.':game.messageTime>0?game.message:nearby?.kind==='exit'?nearby.label:zone?zone.name:'Explore the Sunny, then travel from the lower deck.';for(const kind of ['bazooka','gatling'])$(kind).disabled=!started||paused||game.dead>0||!!game.player.special||!game.player.grounded||game.player.stairs||game.player.attackCd>0||game.player.dash>0||game.meter<SPECIALS[kind].cost||(kind==='gatling'&&!game.buggyDefeated);$('gatling').textContent=game.buggyDefeated?'R · Gatling · 3 bars':'Gatling · Defeat Buggy to unlock';$('charge').textContent=Math.floor(game.meter/100)+' / 3 bars · '+game.meter+' / 300';$('charge').setAttribute('aria-valuenow',game.meter);canvas.dataset.meter=String(game.meter);canvas.dataset.special=game.player.special?.kind||'';canvas.dataset.stage=game.stage;canvas.dataset.playerX=game.player.x.toFixed(1);canvas.dataset.playerY=game.player.y.toFixed(1);canvas.dataset.grounded=String(game.player.grounded);canvas.dataset.paused=String(paused);}
  requestAnimationFrame(tick);}
 requestAnimationFrame(tick);
