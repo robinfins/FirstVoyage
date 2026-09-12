@@ -10,6 +10,8 @@ game=new Game(saved);game.events=[];
 function load(key,path){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>resolve(key);im.src='../assets/chapter-01/'+path;});}
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
+for(const [key,path] of [['syrup-sky','syrup-dusk-sky.png'],['syrup-village','cleaned/syrup-village-midground.png'],['syrup-props','cleaned/syrup-woodland-foreground.png'],['cats','cleaned/black-cat-pirate-poses.png'],['kuro','cleaned/kuro-attack-poses.png']])assets.push([key,'../chapter-02/'+path]);
+assets.push(['meat','ui/meat.svg']);
 assets.push(['luffy-motion','motion/luffy-motion.png'],['luffy-stride','motion/luffy-stride.png']);
 assets.push(['terrain','terrain/pirate-terrain-atlas.png'],['sunny-rails','layers/sunny-rails-foreground.png']);
 for(const name of ['hud-console','hud-health-fill','hud-health-grid','hud-meter-fill','hud-meter-fill-hot','hud-dash-fill','hud-glyphs','hud-lock','hud-coin','hud-pistol-stamp','hud-boss-frame','hud-boss-fill','hud-boss-trail','hud-boss-grid'])assets.push([name,'ui/'+name+'.svg']);
@@ -20,7 +22,11 @@ Promise.all(assets.map(([key,path])=>load(key,path))).then(results=>{
 });
 function begin(fresh){game=new Game(fresh?null:saved);game.events=[];started=true;paused=false;keys.clear();pressed={};$('menu').hidden=true;$('pause-button').disabled=false;camera=targetCamera();canvas.focus();if(fresh){try{localStorage.setItem(SAVE_KEY,JSON.stringify(game.save()));}catch{saveAvailable=false;}}}
 $('start').onclick=()=>begin(true);$('resume').onclick=()=>begin(false);
-function pause(value){if(!started)return;paused=value;keys.clear();pressed={};$('pause-menu').hidden=!paused;$('pause-button').textContent=paused?'Resume · Esc':'Pause · Esc';if(!paused)canvas.focus();}
+function pause(value){if(!started)return;if(game.resting){if(!value)leaveRest();return;}paused=value;keys.clear();pressed={};$('pause-menu').hidden=!paused;$('pause-button').textContent=paused?'Resume · Esc':'Pause · Esc';if(!paused)canvas.focus();}
+function showRest(){paused=true;keys.clear();pressed={};accumulator=0;$('pause-menu').hidden=true;$('rest-menu').hidden=false;$('pause-button').textContent='Resume · Esc';
+ const list=$('travel-list');list.replaceChildren();for(const v of game.visited){const cp=STAGES[v.stage].checkpoints.find(c=>c.id===v.id);if(!cp)continue;const btn=document.createElement('button');btn.textContent=cp.name;btn.disabled=v.stage===game.checkpoint.stage&&v.id===game.checkpoint.id;btn.onclick=()=>{if(game.travel(v.stage,v.id)){processEvents();camera=targetCamera();showRest();}};list.append(btn);} $('leave-rest').focus();}
+function leaveRest(){game.closeRest();$('rest-menu').hidden=true;paused=false;accumulator=0;keys.clear();pressed={};$('pause-button').textContent='Pause · Esc';canvas.focus();}
+$('leave-rest').onclick=leaveRest;
 $('pause-button').onclick=()=>pause(!paused);$('unpause').onclick=()=>pause(false);
 $('respawn').onclick=()=>{game.respawn();camera=targetCamera();pause(false);};
 for(const kind of ['bazooka','gatling'])$(kind).onclick=()=>{if(started&&!paused)pressed[kind]=true;canvas.focus();};
@@ -30,7 +36,7 @@ window.addEventListener('keydown',e=>{
  if(e.code==='Escape'){e.preventDefault();if(!e.repeat)pause(!paused);return;}
  if(!started||paused||document.activeElement!==canvas)return;
  if(['KeyW','KeyA','KeyS','KeyD','Space','KeyE','KeyQ','KeyR'].includes(e.code))e.preventDefault();
- if(!keys.has(e.code)){if(e.code==='KeyW')pressed.jump=true;if(e.code==='KeyS')pressed.drop=true;if(e.code==='Space')pressed.dash=true;if(e.code==='KeyE')pressed.interact=true;if(e.code==='KeyQ')pressed.bazooka=true;if(e.code==='KeyR')pressed.gatling=true;}
+ if(!keys.has(e.code)){if(e.code==='KeyW')pressed.jump=true;if(e.code==='KeyS')pressed.drop=true;if(e.code==='Space')pressed.dash=true;if(e.code==='KeyE')pressed.interact=true;if(e.code==='KeyQ')pressed.bazooka=true;if(e.code==='KeyR')pressed.gatling=true;if(e.code==='KeyF')pressed.heal=true;}
  keys.add(e.code);
 });
 window.addEventListener('keyup',e=>keys.delete(e.code));
@@ -43,11 +49,12 @@ function targetCamera(){const p=game.player;return {x:clamp(p.x-VIEW_W*.44+(Math
 function processEvents(){for(const e of game.events){
  if(e.type==='save'){try{localStorage.setItem(SAVE_KEY,JSON.stringify(e.data));saved=e.data;}catch{saveAvailable=false;}}
  if(e.type==='stage'){camera=targetCamera();pressed={};}
+ if(e.type==='heal')tone(720,.2);
  if(e.type==='hurt'){shake=.18;tone(90,.14,'sawtooth');}
  if(e.type==='hit')tone(190,.06,'square',.018);
  if(e.type==='punch')tone(330,.055);
  if(e.type==='dash')tone(550,.07,'sawtooth',.014);
- if(e.type==='rest'){tone(620,.25);setTimeout(()=>tone(830,.3),100);}
+ if(e.type==='rest'){showRest();tone(620,.25);setTimeout(()=>tone(830,.3),100);}
  if(e.type==='meter-bar')tone(440+e.bars*160,.15);
  if(e.type==='special-start')tone(e.kind==='bazooka'?170:240,.22,'sawtooth',.018);
  if(e.type==='special-pulse'){if(e.kind==='bazooka'){shake=.22;tone(70,.22,'sawtooth',.04);}else tone(210+e.index%3*45,.05,'square',.014);}
@@ -79,7 +86,7 @@ function sea(y,rear=false){const i=Math.floor(game.time*4+(rear?0:2))%4;
  }
  ctx.fillStyle='#082740';ctx.fillRect(0,top+height-1,960,540);
 }
-function backgrounds(){const sunny=game.stage==='sunny';ctx.fillStyle='#182844';ctx.fillRect(0,0,960,540);image('sunset-sky',-30-camera.x*.025,-48,1040,590);
+function backgrounds(){if(game.stage==='syrup'||game.stage==='mansion'){image('syrup-sky',-20-camera.x*.015,-40,1000,580);const ground=game.world.floor-camera.y;terrain(1,0,ground-2,960,900,-camera.x*.35,ground,128);ctx.fillStyle='#172d3388';ctx.fillRect(0,ground,960,900);for(let i=Math.floor(camera.x*.35/900)-1;i<=Math.floor(camera.x*.35/900)+1;i++)image('syrup-village',i*900-camera.x*.35,ground-546,1000,600);return;}const sunny=game.stage==='sunny';ctx.fillStyle='#182844';ctx.fillRect(0,0,960,540);image('sunset-sky',-30-camera.x*.025,-48,1040,590);
  if(sunny){image('distant-islands',-110-camera.x*.1,85,1240,270,.65);sea(400,true);}
  else{
   // Overlapping finite background plates cover the route without exposing image edges.
@@ -101,7 +108,7 @@ function terrain(tile,x,y,w,h,anchorX=x,anchorY=y,size=128){
 function floors(){const dock=game.stage==='dock';
  for(const f of game.platforms()){const x=f.x-camera.x,w=f.end-f.x,y=f.y-camera.y;
   if(x+w<0||x>VIEW_W)continue;
-  if(f.motion){ctx.strokeStyle='#c39b62';ctx.lineWidth=2;for(const offset of [12,w-12]){ctx.beginPath();ctx.moveTo(x+offset,y);ctx.lineTo(x+offset,y-180);ctx.stroke();}}
+  if(f.motion){ctx.strokeStyle='#c39b62';ctx.lineWidth=2;for(const offset of [12,w-12]){ctx.beginPath();ctx.moveTo(x+offset,y);ctx.lineTo(x+offset,-VIEW_H);ctx.stroke();}}
   const ground=f.y===game.world.floor;
   terrain(ground?(dock?0:1):0,x,y,w,ground?540-y:20,x,y,128);
   // A bright, irregular lip preserves an unambiguous landing surface.
@@ -124,16 +131,15 @@ function ship(){const bob=Math.sin(game.time*Math.PI*2/4.5)*1.5;
 // Source rows 448-457 of the ship layer hold the bottom of the upper-deck grass and the deck edge,
 // world y 403.2-411.3. Starting lower than the tuft tops keeps Luffy's legs readable.
 const DECK_GRASS={top:448*.9,height:9*.9};
-function shipRails(bob){image('sunny-rails',-camera.x,bob-camera.y,1672*.9,941*.9);
- // The balusters stop at world y 397 but the deck runs to 407, and that bare strip let Luffy's
- // sandals show through below the railing. Re-drawing the grass band in front closes it: the same
- // draw call and rounding as the background pass, clipped, so the two copies land pixel-identical.
- ctx.save();ctx.beginPath();ctx.rect(0,DECK_GRASS.top+bob-camera.y,VIEW_W,DECK_GRASS.height);ctx.clip();
+function shipRails(bob){image('sunny-rails',-camera.x,bob-camera.y,1672*.9,941*.9);if(game.player.stairs)return;
+ // Cover the deck lip beneath the rails, leaving the staircase opening clear.
+ // While climbing, the ship stays behind Luffy so the deck cannot cut through his body.
+ ctx.save();ctx.beginPath();for(const [left,right] of [[216,891],[954,1359]])ctx.rect(left-camera.x,DECK_GRASS.top+bob-camera.y,right-left,14);ctx.clip();
  image('sunny-ship-layer',-camera.x,bob-camera.y,1672*.9,941*.9);ctx.restore();
 }
 function drawCheckpoints(bob){for(const cp of game.world.checkpoints){frame('checkpoint-snail',2+Math.floor(game.time*1.5)%2,cp.x-camera.x,cp.y-camera.y+bob,.085);const active=cp.id===game.checkpoint.id;ctx.fillStyle=active?'#f8d68d':'#8ec9c9';ctx.beginPath();ctx.arc(cp.x-camera.x,cp.y-camera.y+bob-53,2.5,0,Math.PI*2);ctx.fill();}}
-function drawExits(bob){for(const e of game.world.exits){if(game.stage==='circus'&&game.boss&&game.boss.state!=='defeated')continue;
- const x=e.x-camera.x,y=e.y-camera.y+bob;ctx.fillStyle='#3c3031';ctx.fillRect(x-3,y-53,6,53);ctx.fillStyle='#d2a463';ctx.fillRect(x-20,y-55,42,23);text(e.to==='sunny'?'HOME':'→',x,y-39,13,'#2a2730','center');
+function drawExits(bob){for(const e of game.world.exits){if(e.requiresBuggy&&!game.buggyDefeated)continue;if((game.stage==='circus'||game.stage==='mansion')&&game.boss&&game.boss.state!=='defeated')continue;
+ const x=e.x-camera.x,y=e.y-camera.y+bob;ctx.fillStyle='#3c3031';ctx.fillRect(x-3,y-53,6,53);ctx.fillStyle='#d2a463';ctx.fillRect(x-20,y-55,42,23);text(e.to==='sunny'?'HOME':e.to==='syrup'?'SYRUP':'→',x,y-39,13,'#2a2730','center');
  }
 }
 function drawPlayer(bob){const p=game.player;if(p.grounded&&!p.stairs&&!p.dash&&!p.attack&&!p.special&&Math.abs(p.vx)>12){LuffyMotion.drawStride(ctx,images['luffy-stride'],p,p.x-camera.x,p.y-camera.y+bob,p.invuln>0&&Math.floor(game.time*16)%2?.48:1);return;}const pose=LuffyMotion.pose(p);if(pose!==null){const im=images['luffy-motion'],k=.27;ctx.save();ctx.globalAlpha=p.invuln>0&&Math.floor(game.time*16)%2?.48:1;ctx.translate(Math.round(p.x-camera.x),Math.round(p.y-camera.y+bob));ctx.scale(p.facing,1);ctx.drawImage(im,pose%4*384,Math.floor(pose/4)*384,384,384,-192*k,-340*k,384*k,384*k);ctx.restore();return;}if(p.special){SpecialArt.draw(ctx,images.luffy,p.special,p.x-camera.x,p.y-camera.y+bob,.14);return;}let index=0;
@@ -147,14 +153,16 @@ function drawPlayer(bob){const p=game.player;if(p.grounded&&!p.stairs&&!p.dash&&
  }else frame('luffy',index,x,frameY,scale,p.facing<0,false,alpha);
 }
 function enemyFrame(e){if(e.hit>0)return 7;if(e.state==='wind')return 4;if(e.state==='active')return 5;if(e.state==='recover')return 6;return (Math.abs(e.vx)>25?2:0)+Math.floor(game.time*5)%2;}
-function drawEnemy(e){if(e.hp<=0)return;const key='pirate-'+e.type.replace('cutlass','cutlass').replace('brute','brute').replace('bomber','bomber');
+function chapterSprite(key,i,x,y,scale,facing){ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(facing,1);ctx.drawImage(images[key],i%4*640,Math.floor(i/4)*576,640,576,-320*scale,-536*scale,640*scale,576*scale);ctx.restore();}
+function villageProps(){if(game.stage!=='syrup'&&game.stage!=='mansion')return;const im=images['syrup-props'];for(const x of game.stage==='syrup'?[35,1440,2960,3670]:[15,1120]){const px=x-camera.x;if(px<-180||px>VIEW_W+180)continue;ctx.drawImage(im,0,0,512,540,px-100,430-camera.y-205,200,211);}}
+function drawEnemy(e){if(e.hp<=0)return;if(game.stage==='syrup'){const row={cutlass:0,brute:1,bomber:2}[e.type],i=e.state==='wind'?2:e.state==='active'?3:Math.abs(e.vx)>25?1:0;chapterSprite('cats',row*4+i,e.x-camera.x,e.y-camera.y,.24,e.facing);if(e.state==='wind')text('!',e.x-camera.x,e.y-camera.y-80,18,'#ffbc72','center');return;}const key='pirate-'+e.type.replace('cutlass','cutlass').replace('brute','brute').replace('bomber','bomber');
  const x=e.x-camera.x,y=e.y-camera.y;if(x<-100||x>1060)return;
  frame(key,enemyFrame(e),x,y,e.type==='brute'?.19:.16,e.facing>0); // source pirate art faces left
  if(e.state==='wind'){text('!',x,y-80,18,'#ff9775','center');ctx.strokeStyle='#ff806077';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-2);ctx.lineTo(x+e.facing*(e.type==='brute'?100:75),y-2);ctx.stroke();}
  if(e.hp<TYPES_HP[e.type]){ctx.fillStyle='#182137';ctx.fillRect(x-20,y-72,40,4);ctx.fillStyle='#e8a165';ctx.fillRect(x-20,y-72,40*e.hp/TYPES_HP[e.type],4);}
 }
 const TYPES_HP=Object.fromEntries(Object.entries(TYPES).map(([key,value])=>[key,value.hp]));
-function drawBoss(){const b=game.boss;if(!b)return;let key='buggy-melee',i=Math.floor(game.time*3)%2;
+function drawBoss(){const b=game.boss;if(!b)return;if(b.kind==='kuro'){const i=b.state==='defeated'?7:b.hit>0?7:b.state==='recover'?6:b.state==='wind'?(b.attack==='slash'?4:b.attack==='flurry'?1:2):b.state==='active'?(b.attack==='slash'?5:3):0;chapterSprite('kuro',i,b.x-camera.x,b.y-camera.y,.21,b.facing);if(b.state==='wind')text('!',b.x-camera.x,b.y-camera.y-110,22,'#ffb785','center');return;}let key='buggy-melee',i=Math.floor(game.time*3)%2;
  if(b.state==='defeated'){key='buggy-specials';i=7;}
  else if(b.state==='split'){key='buggy-specials';i=4+Math.floor(game.time*6)%2;}
  else if(b.state==='wind'||b.state==='active'||b.state==='recover'){
@@ -214,8 +222,9 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
  }
  image('hud-coin',ox+HUD.coin[0],oy+HUD.coin[1],14,14);glyphs(game.berries,ox+HUD.berries[0],oy+HUD.berries[1]);
  if(game.damage>1)image('hud-pistol-stamp',...HUD.stamp);
+ ctx.fillStyle='#0b1629ee';ctx.fillRect(16,466,142,60);ctx.strokeStyle='#ae8851';ctx.strokeRect(16.5,466.5,141,59);image('meat',24,474,48,38);glyphs(game.heals+'/3',86,483);text('F · EAT',86,510,10,'#e9d3a1');if(game.healTime){ctx.fillStyle='#eeb76b';ctx.fillRect(22,519,128*(1-game.healTime/.65),3);}
  if(game.boss&&game.bossStarted){const [fx,fy,fw,fh]=BOSS.bar;
-  image('hud-boss-frame',BOSS.x,BOSS.y,BOSS.w,BOSS.h);
+  image('hud-boss-frame',BOSS.x,BOSS.y,BOSS.w,BOSS.h);if(game.boss.kind==='kuro'){ctx.fillStyle='#0c1629';ctx.fillRect(BOSS.x+12,BOSS.y+4,350,18);text('CAPTAIN KURO',BOSS.x+20,BOSS.y+17,12,'#e6c587');}
   bar('hud-boss-trail',BOSS.x+fx,BOSS.y+fy,fw,bossTrail,fh);
   bar('hud-boss-fill',BOSS.x+fx,BOSS.y+fy,fw,game.boss.hp/game.boss.maxHp,fh);
   image('hud-boss-grid',BOSS.x+fx,BOSS.y+fy,fw,fh);
@@ -227,22 +236,22 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
  }
 
  if(game.dead){ctx.fillStyle='#101626b8';ctx.fillRect(0,0,960,540);text('THE VOYAGE CONTINUES',480,255,27,'#f0c88c','center');text('Returning to your signal station…',480,290,13,'#d0d7dd','center');}
- if(game.victoryTime>0){text('BUGGY DEFEATED',480,190,34,'#ffdf91','center');text('Gum-Gum Gatling unlocked',480,220,14,'#fff0cc','center');}
+ if(game.victoryTime>0){text(game.stage==='mansion'?'KURO DEFEATED':'BUGGY DEFEATED',480,190,34,'#ffdf91','center');text(game.stage==='mansion'?'Second captain defeated':'Gum-Gum Gatling unlocked',480,220,14,'#fff0cc','center');}
 
 }
 function render(){ctx.imageSmoothingEnabled=false;ctx.save();ctx.scale(ZOOM,ZOOM);backgrounds();if(!loaded){ctx.restore();return;}if(shake>0)ctx.translate(Math.round(Math.sin(game.time*100)*3),Math.round(Math.cos(game.time*83)*2));
  let bob=0;if(game.stage==='sunny')bob=ship();else {floors();drawHazards();}
- drawCheckpoints(bob);drawExits(bob);
+ villageProps();drawCheckpoints(bob);drawExits(bob);
  if(game.satchel?.stage===game.stage){const s=game.satchel;ctx.fillStyle='#eac466';ctx.fillRect(s.x-camera.x-7,s.y-camera.y-13,14,13);}
  for(const e of game.enemies)drawEnemy(e);drawBoss();drawPlayer(bob);if(game.stage==='sunny')shipRails(bob);drawProjectiles();
- if(game.stage==='circus'&&game.buggyDefeated&&(!game.boss||game.boss.state==='defeated'))plate('BUGGY · REMATCH',880-camera.x,360-camera.y);
+ if(((game.stage==='circus'&&game.buggyDefeated)||(game.stage==='mansion'&&game.kuroDefeated))&&(!game.boss||game.boss.state==='defeated'))plate(game.stage==='mansion'?'KURO · REMATCH':'BUGGY · REMATCH',880-camera.x,360-camera.y);
  for(const e of game.effects){const x=e.x-camera.x,y=e.y-camera.y;ctx.strokeStyle='#fff2bc';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(x-12,y-12);ctx.lineTo(x+12,y+12);ctx.moveTo(x+12,y-12);ctx.lineTo(x-12,y+12);ctx.stroke();}
  if(game.stage==='sunny')sea(SHIP.waterline-camera.y);ctx.restore();drawHud();
  if(started&&!paused){ctx.strokeStyle='#f6dfaa';ctx.lineWidth=1;ctx.beginPath();ctx.arc(pointer.x,pointer.y,6,0,Math.PI*2);ctx.moveTo(pointer.x-10,pointer.y);ctx.lineTo(pointer.x+10,pointer.y);ctx.moveTo(pointer.x,pointer.y-10);ctx.lineTo(pointer.x,pointer.y+10);ctx.stroke();}
 }
 let statusTime=0;
 function tick(now){const dt=Math.min(.1,(now-(last||now))/1000);last=now;
- if(started&&!paused&&loaded){accumulator+=dt;while(accumulator>=1/120){
+ if(started&&!paused&&loaded){accumulator+=dt;while(accumulator>=1/120&&!paused){
   game.step(1/120,{...pressed,left:keys.has('KeyA'),right:keys.has('KeyD'),up:keys.has('KeyW'),down:keys.has('KeyS'),aim:{x:pointer.x/ZOOM+camera.x,y:pointer.y/ZOOM+camera.y}});pressed={};LuffyMotion.update(game.player,1/120);processEvents();accumulator-=1/120;
  }const target=targetCamera();camera.x+=(target.x-camera.x)*Math.min(1,dt*6);camera.y+=(target.y-camera.y)*Math.min(1,dt*5);shake=Math.max(0,shake-dt);
  }else accumulator=0;

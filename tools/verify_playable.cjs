@@ -78,9 +78,9 @@ test('Longer routes and every consecutive parkour landing are reachable',()=>{
 });
 test('Checkpoint IDs survive the longer maps; death and satchel saves still work',()=>{
  const g=fresh('dock');g.player.x=1580;g.hp=2;g.berries=12;g.interact();assert.equal(g.hp,5);assert.equal(g.checkpoint.id,'dock-a');assert.equal(g.context().label,'Press E to rest');
- g.player.x=1670;g.player.lastSafe={x:1670,y:430};g.die();assert.equal(new Game(g.save()).satchel.amount,12);advance(g,1.7);assert.equal(g.stage,'dock');assert.equal(g.player.x,1535);
+ g.closeRest();g.player.x=1670;g.player.lastSafe={x:1670,y:430};g.die();assert.equal(new Game(g.save()).satchel.amount,12);advance(g,1.7);assert.equal(g.stage,'dock');assert.equal(g.player.x,1535);
  g.player.x=1670;g.interact();assert.equal(g.berries,12);assert.equal(g.satchel,null);
- g.transition('streets');g.player.x=2290;g.interact();assert.equal(g.checkpoint.id,'streets-mid');g.player.x=4490;g.interact();assert.equal(g.checkpoint.id,'streets-mid','nearby guards block rest');for(const e of g.enemies)if(Math.abs(e.x-4490)<185)e.hp=0;g.interact();assert.equal(g.checkpoint.id,'streets-b');
+ g.transition('streets');g.player.x=2290;g.interact();assert.equal(g.checkpoint.id,'streets-mid');g.closeRest();g.player.x=4490;g.interact();assert.equal(g.checkpoint.id,'streets-mid','nearby guards block rest');for(const e of g.enemies)if(Math.abs(e.x-4490)<185)e.hp=0;g.interact();assert.equal(g.checkpoint.id,'streets-b');
  const restored=new Game(g.save());assert.equal(restored.player.x,4445);assert.equal(restored.hp,5);
 });
 test('Buggy varies attacks without immediate repeats and accelerates phase two',()=>{

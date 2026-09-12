@@ -1,14 +1,16 @@
 /* Deterministic 120 Hz gameplay. No browser or rendering dependencies. */
 (function(root) {
 'use strict';
+const ChapterTwo=typeof module!=='undefined'?require('./chapter-two.js'):root.ChapterTwo;
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 const SHIP={scale:.9, lower:585, upper:405, stairX:925, left:216, right:1359,
  flag:{x:1255,y:111,poleBottom:140}, waterline:660};
 const STAGES={
+ ...ChapterTwo.stages,
  sunny:{name:'Thousand Sunny',width:1505,spawn:{x:400,y:585},floor:585,
    platforms:[{x:216,end:1359,y:585,id:'lower'},{x:216,end:1359,y:405,id:'upper'}],
-   checkpoints:[{id:'sunny',x:610,y:585,name:'Galley snail'}],exits:[{x:1270,y:585,to:'dock',label:'Sail to Orange Town'}],enemies:[]},
+   checkpoints:[{id:'sunny',x:610,y:585,name:'Galley snail'}],exits:[{x:1270,y:585,to:'dock',label:'Sail to Orange Town'},{x:1120,y:585,to:'syrup',label:'Sail to Syrup Village',requiresBuggy:true}],enemies:[]},
  dock:{name:'Orange Town · Broken quays',width:4200,spawn:{x:100,y:430},floor:430,
    platforms:[{x:0,end:700,y:430,id:'landing'},
     {x:770,end:900,y:352,id:'cargo-a'},{x:985,end:1120,y:282,id:'cargo-b'},
@@ -70,7 +72,10 @@ function validSave(raw) {
   const candidates=level.platforms.filter(f=>!f.motion).map(f=>{let x=clamp(satchel.x,f.x+24,f.end-24);for(const h of level.hazards||[])if(h.y===f.y&&x>h.x-20&&x<h.end+20)x=clamp(h.x-25,f.x+24,f.end-24);return {x,y:f.y,cost:Math.abs(x-satchel.x)+Math.abs(f.y-satchel.y)};}).sort((a,b)=>a.cost-b.cost);
   if(candidates.length){satchel.x=candidates[0].x;satchel.y=candidates[0].y;}
  }
- return {version:1,satchel,checkpoint:{stage:raw.checkpoint.stage,id:cp.id},berries:clamp(Math.floor(Number(raw.berries)||0),0,9999),buggyDefeated:raw.buggyDefeated===true};
+ const visited=Array.isArray(raw.visited)?raw.visited.filter(v=>STAGES[v.stage]?.checkpoints.some(c=>c.id===v.id)):[];
+ if(!visited.some(v=>v.stage===raw.checkpoint.stage&&v.id===cp.id))visited.push({stage:raw.checkpoint.stage,id:cp.id});
+ if(!visited.some(v=>v.stage==='sunny'))visited.unshift({stage:'sunny',id:'sunny'});
+ return {version:1,visited,kuroDefeated:raw.kuroDefeated===true,satchel,checkpoint:{stage:raw.checkpoint.stage,id:cp.id},berries:clamp(Math.floor(Number(raw.berries)||0),0,9999),buggyDefeated:raw.buggyDefeated===true};
 }
 function lineDistance(px,py,ax,ay,bx,by) {
  const dx=bx-ax,dy=by-ay,t=clamp(((px-ax)*dx+(py-ay)*dy)/(dx*dx+dy*dy||1),0,1);
@@ -87,13 +92,13 @@ class Game {
  constructor(save) {
   const data=validSave(save);this.time=0;this.events=[];this.checkpoint=data?.checkpoint||{stage:'sunny',id:'sunny'};
   this.berries=data?.berries||0;this.buggyDefeated=data?.buggyDefeated||false;this.damage=this.buggyDefeated?2:1;
-  this.maxHp=5;this.hp=5;this.meter=0;this.deaths=0;this.satchel=data?.satchel||null;this.projectiles=[];this.effects=[];this.attackSerial=0;
+  this.kuroDefeated=data?.kuroDefeated||false;this.visited=data?.visited||[{stage:'sunny',id:'sunny'}];this.heals=3;this.healTime=0;this.resting=false;this.maxHp=5;this.hp=5;this.meter=0;this.deaths=0;this.satchel=data?.satchel||null;this.projectiles=[];this.effects=[];this.attackSerial=0;
   this.message='The crew is ready. Find the gangway on the lower deck.';this.messageTime=6;this.dead=0;this.victoryTime=0;
   this.rng=1234567;this.loadStage(this.checkpoint.stage);this.placeAtCheckpoint();
  }
  emit(type,data={}){this.events.push({type,...data});}
  say(text,seconds=3){this.message=text;this.messageTime=seconds;}
- save(){return {version:1,satchel:this.satchel?{...this.satchel}:null,checkpoint:{...this.checkpoint},berries:this.berries,buggyDefeated:this.buggyDefeated};}
+ save(){return {version:1,visited:this.visited.map(v=>({...v})),kuroDefeated:this.kuroDefeated,satchel:this.satchel?{...this.satchel}:null,checkpoint:{...this.checkpoint},berries:this.berries,buggyDefeated:this.buggyDefeated};}
  requestSave(){this.emit('save',{data:this.save()});}
  loadStage(stage,back=false) {
   this.stage=stage;this.world=STAGES[stage];this.projectiles=[];this.effects=[];this.boss=null;this.bossStarted=false;
@@ -101,46 +106,53 @@ class Game {
   const spawn=this.world.spawn;this.player={x:back?this.world.width-150:spawn.x,y:spawn.y,vx:0,vy:0,w:22,h:45,grounded:true,facing:1,coyote:.1,jumpBuffer:0,dash:0,dashCd:0,airDash:true,invuln:.6,attack:null,special:null,attackCd:0,drop:0,stairs:false,platform:'',lastSafe:{x:spawn.x,y:spawn.y}};
   if(stage==='sunny')this.player.x=back?1240:400;
   if(stage==='circus'&&!this.buggyDefeated)this.spawnBoss();
+  if(stage==='mansion'&&!this.kuroDefeated)this.spawnBoss();
   this.emit('stage',{stage});
  }
- spawnBoss(){this.boss={x:880,y:430,hp:84,maxHp:84,state:'idle',timer:.65,phase:1,cycle:0,facing:-1,hit:0,attack:'knives',vx:0,vy:0,bag:[],previous:'',followup:false};
+ spawnBoss(){this.boss={x:880,y:430,hp:84,maxHp:84,state:'idle',timer:.65,phase:1,cycle:0,facing:-1,hit:0,attack:'knives',vx:0,vy:0,bag:[],previous:'',followup:false};if(this.stage==='mansion')Object.assign(this.boss,{kind:'kuro',hp:120,maxHp:120});
  }
  placeAtCheckpoint(){const cp=this.world.checkpoints.find(c=>c.id===this.checkpoint.id);if(cp){this.player.x=cp.x-45;this.player.y=cp.y;this.player.lastSafe={x:this.player.x,y:cp.y};}}
- transition(to){const order=['sunny','dock','streets','circus'];const back=order.indexOf(to)<order.indexOf(this.stage);this.loadStage(to,back);this.say(to==='circus'?'Buggy: “You picked the wrong circus!”':this.world.name,3);}
+ transition(to){if((to==='syrup'||to==='mansion')&&!this.buggyDefeated){this.say('Defeat Buggy to unlock Syrup Village.');return;}const order=['sunny','dock','streets','circus','syrup','mansion'];const back=order.indexOf(to)<order.indexOf(this.stage);this.loadStage(to,back);this.say(to==='circus'?'Buggy: “You picked the wrong circus!”':this.world.name,3);}
  context(){
   const p=this.player;if(this.dead)return null;
-  if(this.stage==='circus'&&this.buggyDefeated&&(!this.boss||this.boss.state==='defeated')&&Math.hypot(p.x-880,p.y-430)<65)return {kind:'rematch',x:880,y:430,label:'Challenge Buggy again'};
+  if(((this.stage==='circus'&&this.buggyDefeated)||(this.stage==='mansion'&&this.kuroDefeated))&&(!this.boss||this.boss.state==='defeated')&&Math.hypot(p.x-880,p.y-430)<65)return {kind:'rematch',x:880,y:430,label:this.stage==='mansion'?'Challenge Kuro again':'Challenge Buggy again'};
   if(this.satchel?.stage===this.stage&&Math.hypot(p.x-this.satchel.x,p.y-this.satchel.y)<56)return {kind:'satchel',label:'Recover '+this.satchel.amount+' berries',...this.satchel};
   for(const cp of this.world.checkpoints)if(Math.hypot(p.x-cp.x,p.y-cp.y)<62)return {kind:'checkpoint',label:'Press E to rest',...cp};
   for(const e of this.world.exits)if(Math.hypot(p.x-e.x,p.y-e.y)<65){
-   if(this.stage==='circus'&&this.boss&&this.boss.state!=='defeated')continue;
+   if(e.requiresBuggy&&!this.buggyDefeated)continue;
+   if((this.stage==='circus'||this.stage==='mansion')&&this.boss&&this.boss.state!=='defeated')continue;
    return {kind:'exit',...e};
   }
   return null;
  }
- interact(){if(this.player.special)return;const c=this.context();if(!c)return;
-  if(c.kind==='rematch'){this.spawnBoss();this.projectiles=[];this.victoryTime=0;this.bossStarted=false;this.player.x=300;this.say('Buggy: Back for another round?',3);return;}
+ interact(){if(this.player.special||this.healTime||this.resting)return;const c=this.context();if(!c)return;
+  if(c.kind==='rematch'){this.spawnBoss();this.projectiles=[];this.victoryTime=0;this.bossStarted=false;this.player.x=300;this.say(this.stage==='mansion'?'Kuro: You should have stayed away.':'Buggy: Back for another round?',3);return;}
   if(c.kind==='checkpoint'){
    if(this.enemies.some(e=>e.hp>0&&Math.hypot(e.x-this.player.x,e.y-this.player.y)<185)){this.say('Defeat the nearby pirate before resting.');return;}
-   this.checkpoint={stage:this.stage,id:c.id};this.hp=this.maxHp;this.projectiles=[];
+   this.checkpoint={stage:this.stage,id:c.id};if(!this.visited.some(v=>v.stage===this.stage&&v.id===c.id))this.visited.push({...this.checkpoint});this.heals=3;this.hp=this.maxHp;this.projectiles=[];
    const x=this.player.x,y=this.player.y;this.loadStage(this.stage);this.player.x=x;this.player.y=y;this.player.lastSafe={x,y};
-   this.requestSave();this.say('Saved at '+c.name+'. Health restored; pirates return.',4);this.emit('rest');
+   this.resting=true;this.requestSave();this.say('Saved at '+c.name+'. Health restored; pirates return.',4);this.emit('rest');
   }else if(c.kind==='exit')this.transition(c.to);
   else if(c.kind==='satchel'){this.berries+=this.satchel.amount;this.satchel=null;this.requestSave();this.say('Lost berries recovered.');}
  }
- hurt(amount,fromX){const p=this.player;if(this.dead||p.invuln>0||p.dash>0)return false;
-  this.hp=Math.max(0,this.hp-amount);p.invuln=1;if(!p.special){p.vx=(p.x<fromX?-1:1)*190;p.vy=-120;p.grounded=false;}p.stairs=false;this.emit('hurt');
+ closeRest(){this.resting=false;this.player.invuln=.8;}
+ travel(stage,id){if(!this.resting||!this.visited.some(v=>v.stage===stage&&v.id===id)||!STAGES[stage]?.checkpoints.some(c=>c.id===id))return false;
+  this.checkpoint={stage,id};this.loadStage(stage);this.placeAtCheckpoint();this.say('Resting at '+STAGES[stage].checkpoints.find(c=>c.id===id).name,3);this.hp=this.maxHp;this.heals=3;this.requestSave();return true;
+ }
+ heal(){const p=this.player;if(this.dead||this.resting||this.healTime||this.hp>=this.maxHp||this.heals<=0||p.special||p.attack||p.dash||!p.grounded||p.stairs)return false;this.heals--;this.healTime=.65;return true;}
+ hurt(amount,fromX){const p=this.player;if(this.resting||this.dead||p.invuln>0||p.dash>0)return false;
+  this.healTime=0;this.hp=Math.max(0,this.hp-amount);p.invuln=1;if(!p.special){p.vx=(p.x<fromX?-1:1)*190;p.vy=-120;p.grounded=false;}p.stairs=false;this.emit('hurt');
   if(!this.hp)this.die();return true;
  }
  die(){if(this.dead)return;this.meter=0;this.player.special=null;this.player.attack=null;this.dead=1.6;this.deaths++;this.satchel={stage:this.stage,...this.player.lastSafe,amount:this.berries};this.berries=0;this.projectiles=[];this.requestSave();this.emit('death');this.say('Your voyage isn’t over.',2);}
- respawn(){this.meter=0;this.hp=this.maxHp;this.dead=0;this.loadStage(this.checkpoint.stage);this.placeAtCheckpoint();this.say('Back at the last signal station. Recover your berries.',4);}
- startAttack(aim){const p=this.player;if(p.special||p.attackCd>0||p.dash>0||this.dead)return false;
+ respawn(){this.resting=false;this.healTime=0;this.heals=3;this.meter=0;this.hp=this.maxHp;this.dead=0;this.loadStage(this.checkpoint.stage);this.placeAtCheckpoint();this.say('Back at the last signal station. Recover your berries.',4);}
+ startAttack(aim){const p=this.player;if(this.healTime||p.special||p.attackCd>0||p.dash>0||this.dead)return false;
   const dx=aim.x-p.x,dy=aim.y-(p.y-26),len=Math.hypot(dx,dy)||1;
   p.facing=dx<0?-1:1;p.attack={id:++this.attackSerial,t:0,dx:dx/len,dy:dy/len,hit:new Set()};p.attackCd=.33;this.emit('punch');return true;
  }
  gainMeter(){const before=this.meter;this.meter=Math.min(METER.max,this.meter+METER.perHit);if(Math.floor(before/100)<Math.floor(this.meter/100))this.emit('meter-bar',{bars:Math.floor(this.meter/100)});}
  startSpecial(kind,aim){const p=this.player,spec=SPECIALS[kind];
-  if(!spec||this.dead||p.special)return false;
+  if(!spec||this.dead||this.healTime||p.special)return false;
   if(kind==='gatling'&&!this.buggyDefeated){this.say('Defeat Buggy to unlock Gum-Gum Gatling.',2);return false;}
   if(this.meter<spec.cost){this.say('Need '+spec.cost/100+' full bars.',1.4);return false;}
   if(!p.grounded||p.stairs){this.say('Land before using '+spec.name+'.',1.5);return false;}
@@ -168,19 +180,22 @@ class Game {
   if(e===this.boss){if(e.hp===0)this.win();}
   else {e.vx+=dx*70;if(!e.hp){this.berries+=e.type==='brute'?8:5;this.emit('coin');}}
  }
- win(){if(!this.boss||this.boss.state==='defeated')return;const firstWin=!this.buggyDefeated;this.buggyDefeated=true;this.damage=2;if(firstWin)this.berries+=50;this.projectiles=[];this.bossStarted=false;this.victoryTime=5;
+ win(){if(!this.boss||this.boss.state==='defeated')return;if(this.boss.kind==='kuro'){const first=!this.kuroDefeated;this.kuroDefeated=true;if(first)this.berries+=100;this.projectiles=[];this.bossStarted=false;this.boss.state='defeated';this.victoryTime=5;this.say(first?'KURO DEFEATED · Second captain victory · +100 berries':'KURO DEFEATED · Rematch won!',6);this.requestSave();this.emit('victory');return;}const firstWin=!this.buggyDefeated;this.buggyDefeated=true;this.damage=2;if(firstWin)this.berries+=50;this.projectiles=[];this.bossStarted=false;this.victoryTime=5;
   this.boss.state='defeated';this.boss.y=this.world.floor;this.boss.vy=0;this.say(firstWin?'BUGGY DEFEATED · Gatling unlocked! Pistol strengthened · +50 berries':'BUGGY DEFEATED · Rematch won!',7);this.requestSave();this.emit('victory');}
  step(dt,input={}){
+  if(this.resting)return;
   dt=clamp(dt,0,1/30);this.time+=dt;this.messageTime=Math.max(0,this.messageTime-dt);this.victoryTime=Math.max(0,this.victoryTime-dt);
   this.effects=this.effects.filter(e=>(e.t-=dt)>0);
   if(this.dead){this.dead-=dt;if(this.dead<=0)this.respawn();return;}
   const p=this.player;p.invuln=Math.max(0,p.invuln-dt);p.dashCd=Math.max(0,p.dashCd-dt);p.attackCd=Math.max(0,p.attackCd-dt);p.drop=Math.max(0,p.drop-dt);
   if(input.interact)this.interact();
-  if(this.player!==p)return;
+  if(this.player!==p||this.resting)return;
+  if(input.heal)this.heal();
+  if(this.healTime>0){this.healTime=Math.max(0,this.healTime-dt);if(!this.healTime){this.hp=Math.min(this.maxHp,this.hp+1);this.emit("heal");}}
   const aim=input.aim||{x:p.x+p.facing*150,y:p.y-26};
   if(input.gatling)this.startSpecial('gatling',aim);else if(input.bazooka)this.startSpecial('bazooka',aim);
   if(p.special&&input.dash&&p.dashCd===0&&p.airDash){p.special=null;this.emit('special-cancel');}
-  const casting=!!p.special;
+  const casting=!!p.special||this.healTime>0;
   const move=casting?0:(input.right?1:0)-(input.left?1:0);
   const nearStair=this.stage==='sunny'&&Math.abs(p.x-SHIP.stairX)<38&&p.y>=SHIP.upper-3&&p.y<=SHIP.lower+3;
   if(!casting&&nearStair&&((input.up&&p.y>SHIP.upper)||(input.down&&p.y<SHIP.lower))){p.stairs=true;p.attack=null;}
@@ -193,7 +208,7 @@ class Game {
    if(input.drop&&!casting&&p.grounded&&p.platform!=='lower'&&p.y<this.world.floor-5){p.drop=.23;p.grounded=false;p.y+=3;}
    if(p.jumpBuffer>0&&p.coyote>0&&p.drop===0){p.vy=-465;p.grounded=false;p.coyote=0;p.jumpBuffer=0;this.emit('jump');}
    if(!input.up&&p.vy<-160)p.vy+=1350*dt;
-   if(input.dash&&p.dashCd===0&&p.airDash){p.dash=.16;p.dashCd=.65;p.airDash=false;p.vy=0;p.attack=null;p.facing=move||p.facing;this.emit('dash');}
+   if(input.dash&&!this.healTime&&p.dashCd===0&&p.airDash){p.dash=.16;p.dashCd=.65;p.airDash=false;p.vy=0;p.attack=null;p.facing=move||p.facing;this.emit('dash');}
    if(p.dash>0){p.dash=Math.max(0,p.dash-dt);p.vx=p.facing*650;p.vy=0;}
    else {const target=move*205;p.vx+=(target-p.vx)*Math.min(1,dt*(p.grounded?22:12));p.vy=Math.min(680,p.vy+1000*dt);if(move)p.facing=move;}
    if(p.grounded){const f=this.platforms().find(f=>f.id===p.platform);if(f?.motion){const before=this.platforms(this.time-dt).find(q=>q.id===f.id);p.x+=f.x-before.x;p.y+=f.y-before.y;}}
@@ -259,7 +274,7 @@ class Game {
    }
   }else if(e.state==='wind'&&e.timer<=0){
    e.state='active';e.timer=e.type==='brute'?.27:.23;e.attackCount++;
-   if(e.type==='bomber')this.bomb(e.x,e.y-48,e.aim,1);
+   if(e.type==='bomber'){if(this.stage==='syrup'){const a=Math.atan2(e.aim.y-(e.y-40),e.aim.x-e.x);this.projectiles.push({kind:'knife',x:e.x,y:e.y-40,vx:Math.cos(a)*320,vy:Math.sin(a)*320,t:2.5,damage:1});}else this.bomb(e.x,e.y-48,e.aim,1);}
   }else if(e.state==='active'){
    if(e.type!=='bomber'){
     direction=e.facing;
@@ -287,7 +302,7 @@ class Game {
   b.previous=b.bag.pop();return b.previous;
  }
  knives(b,count=3,offset=0){const angle=Math.atan2(b.aim.y-(b.y-45),b.aim.x-b.x)+offset;for(let i=0;i<count;i++){const a=angle+(i-(count-1)/2)*.19;this.projectiles.push({kind:'knife',x:b.x,y:b.y-45,vx:Math.cos(a)*330,vy:Math.sin(a)*330,t:2.5,damage:1});}}
- updateBoss(dt){const b=this.boss,p=this.player;if(!b||b.hp<=0)return;b.hit=Math.max(0,b.hit-dt);
+ updateBoss(dt){if(this.boss?.kind==='kuro'){ChapterTwo.updateKuro(this,dt);return;}const b=this.boss,p=this.player;if(!b||b.hp<=0)return;b.hit=Math.max(0,b.hit-dt);
   if(!this.bossStarted){if(p.x>235){this.bossStarted=true;this.say('Buggy the Clown',2);}else return;}
   b.timer-=dt;
   if(b.hp<=b.maxHp*.5&&b.phase===1){b.phase=2;b.state='split';b.timer=.85;b.bag=[];b.y=430;b.vy=0;this.projectiles=[];this.say('Chop-Chop Festival!',2);}

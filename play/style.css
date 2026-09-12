@@ -3,3 +3,5 @@
 .game-info{font-size:12px;color:#d3bf96;min-height:20px;line-height:1.5;margin:12px 0 0}
 
 .special-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:16px}.special-controls>span{font-size:12px;color:#d8bf8b;margin-right:auto}.special-controls button:disabled{cursor:default}
+
+#rest-menu .card{max-height:90%;overflow:auto}#travel-list{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}#travel-list button{font-size:13px;padding:10px}
