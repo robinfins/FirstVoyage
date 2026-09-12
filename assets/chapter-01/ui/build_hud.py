@@ -218,25 +218,47 @@ CREST=48
 def zoro_crest():
  c=CREST//2
  out=[disc(c,c,24,EDGE,.95),disc(c,c,22,RIM),disc(c,c,20,'#17263f')]
- # Round hoops, not tall ovals: a narrow ellipse tapers to a point at this size and reads as a
- # leaf. Three of them barely fit across a 40px disc, so the outlines are allowed to touch --
- # what separates them for the eye is three clearly open holes, which also reads as a chain.
- R,HOLE,CY=6,3,24
- CXS=(10,24,38)
- def band(x,y,ox=0,oy=0):
+ # Not three plain rings: each earring is a small hoop through the ear carrying a long gold drop,
+ # narrow where it hangs and swelling to a rounded tip low down. The drop owns the silhouette, so
+ # it gets three quarters of the height and the hoop stays subordinate to it.
+ # The drop hangs from the hoop's lower arc, never through it: start it any higher and it plugs
+ # the hole, which is the whole reason the hoop reads as a ring rather than a bead.
+ CXS=(12,24,36); HOOP_Y,HOOP_R,HOOP_HOLE=15,4.3,2.4
+ TOP,BULB_Y,BULB_R,TOP_W=18,31,4.2,1.0
+ # Half-width per row. A straight-sided drop reads as a peg, so the taper is computed rather than
+ # tabled: linear from the hang point down to the bulb centre, circular below it for a round tip.
+ DROP=[]
+ for y in range(TOP,CREST):
+  w=TOP_W+(BULB_R-TOP_W)*(y-TOP)/(BULB_Y-TOP) if y<=BULB_Y else (BULB_R*BULB_R-(y-BULB_Y)**2)**.5 if abs(y-BULB_Y)<BULB_R else 0
+  if w<.6: break
+  DROP.append(int(round(w)))
+ def hoop(x,y,ox=0,oy=0):
   for cx in CXS:
-   d=(x-ox-cx)**2+(y-oy-CY)**2
-   if d<=R*R: return d>HOLE*HOLE
+   d=(x-ox-cx)**2+(y-oy-HOOP_Y)**2
+   if d<=HOOP_R*HOOP_R: return d>HOOP_HOLE*HOOP_HOLE
   return False
+ def drop(x,y):
+  i=y-TOP
+  if not 0<=i<len(DROP): return None
+  for cx in CXS:
+   if abs(x-cx)<=DROP[i]: return x-cx,DROP[i]
+  return None
+ def ink(x,y): return hoop(x,y) or drop(x,y) is not None
+ # Outline the outer silhouette only. Dilating into the hoop's hole as well eats it from every
+ # side at once and leaves a dark cross instead of a ring; five pixels of hole cannot spare any.
+ def in_hoop_disc(x,y): return any((x-cx)**2+(y-HOOP_Y)**2<=HOOP_R*HOOP_R for cx in CXS)
  px={}
  for y in range(CREST):
   for x in range(CREST):
-   if band(x,y):
-    # Lit from the upper left. On a ring that lights the outer upper-left edge and, across the
-    # hole, the inner lower-right one -- which is what makes it read as metal rather than a disc.
-    # One pixel each: at a three-pixel wall a wider band leaves no gold between the two tones.
-    px[(x,y)]=EAR_HI if not band(x,y,1,1) else EAR_LO if not band(x,y,-1,-1) else EAR
-   elif any(band(x+ox,y+oy) for ox in(-1,0,1) for oy in(-1,0,1)): px[(x,y)]=EAR_EDGE
+   d=drop(x,y)
+   if d is not None:
+    off,w=d
+    # A gleam down each drop, inset one pixel from the left edge the way polished metal catches
+    # the light in the reference art, with the far side rolling into shadow.
+    px[(x,y)]=EAR_HI if -w<off<=-w+2 else EAR_LO if off>=w-(1 if w>2 else 0) else EAR
+   elif hoop(x,y):
+    px[(x,y)]=EAR_HI if not hoop(x,y,1,1) else EAR_LO if not hoop(x,y,-1,-1) else EAR
+   elif not in_hoop_disc(x,y) and any(ink(x+ox,y+oy) for ox in(-1,0,1) for oy in(-1,0,1)): px[(x,y)]=EAR_EDGE
  for y in range(CREST):                                   # pack the emblem back into runs
   x=0
   while x<CREST:
