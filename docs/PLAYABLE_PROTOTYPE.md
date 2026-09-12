@@ -162,6 +162,24 @@ Run `node tools/verify_playable.cjs`. All seventeen checks pass. The route check
 
 ## Current limits
 
-This is the first compact playable slice. This update raises combat pressure and traversal demands; difficulty still needs tuning from play sessions. The cleaned artwork still uses sparse key poses, so running and attack animation need additional drawings. Rubber punches and flying hazards use simple runtime shapes. Floor/platform art is provisional. The hub shop, inventory, crew conversations, controller/touch support, full audio, shortcut persistence and later bosses are future work. Gear 2 remains outside this chapter. Combat timings need human playtesting beyond the automated checks.
+This is the first compact playable slice. This update raises combat pressure and traversal demands; difficulty still needs tuning from play sessions. The cleaned artwork still uses sparse key poses, so running and attack animation need additional drawings. Rubber punches and flying hazards use simple runtime shapes. Floor/platform art is provisional. The hub shop, inventory, crew conversations, controller/touch support, full audio, shortcut persistence and later bosses are future work. Gear 2 unlocks after Kuro in Chapter 2. Combat timings need human playtesting beyond the automated checks.
 
 Buggy can be challenged again by pressing E near his arena marker after victory. Rematches preserve the Gatling unlock and do not repeat the first-clear 50-berry reward.
+
+
+## Chapter 2 combat update
+
+Desktop changes through `1433dc7` are preserved. Trees now root into solid ground sections instead of spanning parkour gaps. Kuro cycles through lunges, claw swipes, retreat-and-dash feints, aimed aerial dives with landing shockwaves, and ranged claw fans. His second phase adds repeated pursuit dashes. Windups, afterimages, claw arcs and recovery poses make both bosses more readable.
+
+Kuro permanently unlocks **Gear 2**. **X** spends all charge: 1/2/3 whole bars grant **3/7/13 seconds** after a 0.6-second ground-fist startup. Partial leftover charge is also consumed. Startup can be interrupted; no refund. Hold left click for automatic punches at twice normal speed; dash cooldown is halved. Red skin, a faint glow, steam and a countdown indicate the buff. **Right click** fires an aimed **Jet Stamp**, one heavy hit (12× level-scaled base damage, matching Bazooka), and ends the buff immediately. Room changes, resting and death clear Gear 2; pausing freezes its timer. Existing Kuro-cleared saves receive the unlock automatically.
+
+Validation: `node tools/verify_gear.cjs` covers durations, interruption, pause, attack cadence, dash cooldown, finisher damage, state cleanup, save unlock and Kuro move variety. Existing playable, chapter, motion and scene checks also pass. Animation uses the existing artwork with runtime effects; difficulty still needs human playtesting.
+
+
+## Kuro arena and phase-two revision
+
+Kaya's mansion now follows the user's series reference, rendered in the game's pixel-art style: blue roof, curved gable, balcony, white fence and large left-hand tree. The courtyard has its own ground treatment and restrained background movement. Art prompts and source/atlas details are recorded in `assets/chapter-02/ARENA_ART.md` and `assets/chapter-01/motion/JET_STAMP.md`.
+
+At half health Kuro immediately discards his first-phase attacks and enters a 1.05-second telegraphed phase change. Phase two uses a distinct shuffled set: three retargeted pursuit dashes, two aimed pounces, two staggered claw volleys, and a faster flurry. Each combo has its own short follow-up tells and a final 0.75-second recovery opening. Ranged attacks now release from his hand during the claw sweep, then return to standing, instead of using a lunge or collapse pose.
+
+Jet Stamp uses four new full-body kick poses and deals exactly the same damage as Bazooka (12× current level damage), once per enemy. It impacts at 0.25 seconds and completes its retraction by 0.72 seconds. Gear 2 ends mechanically immediately on Jet Stamp, or at expiry, with one exit cue and a 0.65-second visual steam/tint fade. Stronger transformation entry cues and a distinct kick windup/impact cue accompany the move.

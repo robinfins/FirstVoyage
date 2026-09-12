@@ -14,7 +14,7 @@ function body(ctx,im,x,y,scale,facing){
 }
 function arm(ctx,sx,sy,tx,ty,width,alpha=1){
  ctx.save();ctx.globalAlpha=alpha;ctx.lineCap='round';ctx.lineJoin='round';ctx.strokeStyle='#252238';ctx.lineWidth=width+3;
- ctx.beginPath();ctx.moveTo(Math.round(sx),Math.round(sy));ctx.lineTo(Math.round(tx),Math.round(ty));ctx.stroke();ctx.strokeStyle='#f2b681';ctx.lineWidth=width;ctx.stroke();
+ ctx.beginPath();ctx.moveTo(Math.round(sx),Math.round(sy));ctx.lineTo(Math.round(tx),Math.round(ty));ctx.stroke();ctx.strokeStyle=root.SpecialArt?.hot?'#ef9385':'#f2b681';ctx.lineWidth=width;ctx.stroke();
  ctx.fillStyle='#282237';ctx.fillRect(Math.round(tx-7),Math.round(ty-6),15,13);ctx.fillStyle='#ffca92';ctx.fillRect(Math.round(tx-5),Math.round(ty-4),11,9);ctx.fillStyle='#ce855b';for(let k=-3;k<=3;k+=3)ctx.fillRect(Math.round(tx+k),Math.round(ty-4),1,4);ctx.restore();
 }
 function draw(ctx,im,a,x,y,scale){
@@ -53,7 +53,7 @@ function punch(ctx,im,a,x,y,scale,alpha=1){
  // Bent elbow during wind-up straightens into a single rubber arm on release.
  const ex=sx+a.dx*reach*.45-facing*7*(1-blend),ey=sy+(ty-sy)*.45+9*(1-blend);
  ctx.lineCap='round';ctx.lineJoin='round';
- for(const [color,width] of [['#282237',8],['#edb380',5]]){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(ex,ey,tx,ty);ctx.stroke();}
+ for(const [color,width] of [['#282237',8],[root.SpecialArt?.hot?'#ef9385':'#edb380',5]]){ctx.strokeStyle=color;ctx.lineWidth=width;ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(ex,ey,tx,ty);ctx.stroke();}
  ctx.save();ctx.translate(tx,ty);ctx.rotate(Math.atan2(a.dy,a.dx));ctx.fillStyle='#282237';ctx.beginPath();ctx.moveTo(-4,-4);ctx.lineTo(4,-5);ctx.lineTo(7,-2);ctx.lineTo(7,3);ctx.lineTo(3,5);ctx.lineTo(-4,3);ctx.closePath();ctx.fill();ctx.fillStyle='#ffd19b';ctx.fillRect(-3,-3,8,6);ctx.fillStyle='#b87959';ctx.fillRect(2,-2,1,4);ctx.restore();
  if(t>.28&&t<.6){ctx.strokeStyle='#ffe7b977';ctx.lineWidth=1;for(const n of [-1,1]){ctx.beginPath();ctx.moveTo(tx-a.dx*30-a.dy*n*7,ty-a.dy*30+a.dx*n*7);ctx.lineTo(tx-a.dx*12-a.dy*n*7,ty-a.dy*12+a.dx*n*7);ctx.stroke();}}
  ctx.restore();ctx.restore();

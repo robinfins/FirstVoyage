@@ -54,8 +54,14 @@ const FX={
  jump(t){osc(t,{from:190,to:430,dur:.11,gain:.08,type:'triangle'});
   air(t,{cut:900,to:1800,dur:.07,gain:.03});},
 
+ 'gear-start'(t){osc(t,{from:65,to:145,dur:.55,gain:.16,type:'sine'});air(t,{cut:400,to:2600,dur:.6,gain:.16});},
+ 'gear-active'(t){osc(t,{from:200,to:70,dur:.24,gain:.2});air(t,{cut:2400,to:700,dur:.45,gain:.16});},
+ 'gear-end'(t){air(t,{cut:2600,to:350,dur:.6,gain:.15});osc(t,{from:150,to:45,dur:.42,gain:.09});},
+ 'claw-sweep'(t){air(t,{cut:1100,to:4200,dur:.17,gain:.12});},
+ 'kuro-phase'(t){osc(t,{from:160,to:40,dur:.7,gain:.22});air(t,{cut:500,to:3000,dur:.6,gain:.12});},
  'special-start'(t,e){
-  if(e.kind==='bazooka'){                       // both arms winding back: a long rising stretch
+  if(e.kind==='jetstamp'){air(t,{cut:450,to:2200,dur:.24,gain:.18});osc(t,{from:160,to:460,dur:.22,gain:.1});}
+  else if(e.kind==='bazooka'){                       // both arms winding back: a long rising stretch
    osc(t,{from:90,to:260,dur:.55,gain:.12,type:'sawtooth',attack:.08});
    air(t,{cut:300,to:1500,q:3,dur:.55,gain:.06});
   }else{                                        // Gatling revs: three quick rising blips
@@ -63,7 +69,7 @@ const FX={
    air(t,{cut:700,to:2200,q:2,dur:.18,gain:.05});}},
 
  'special-pulse'(t,e){
-  if(e.kind==='bazooka'){                       // cannon: deep drop, blast, crack on top
+  if(e.kind==='bazooka'||e.kind==='jetstamp'){   // cannon: deep drop, blast, crack on top
    osc(t,{from:180,to:32,dur:.42,gain:.42,type:'sine'});
    osc(t,{from:120,to:40,dur:.3,gain:.16,type:'square'});
    air(t,{cut:1800,to:180,q:.8,dur:.38,gain:.22,type:'lowpass'});

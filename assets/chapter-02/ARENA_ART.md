@@ -1,0 +1,9 @@
+# Kuro arena artwork
+
+Generated with the built-in image generation tool. Active asset: `kaya-mansion-arena-v2.png` (1536×1024). The earlier `kaya-mansion-arena.png` is a style reference/draft, not loaded by the game.
+
+Architecture reference supplied by the user: `Kaya%27s_Mansion.webp`. The current image preserves its pale blue roof, curved central gable, balcony, white estate fence, black entrance gate and large tree to the left. Rendering uses slow architecture parallax, separate drifting garden motes, a phase-two color overlay and a world-anchored courtyard surface sampled from the image.
+
+## Final generation prompt
+
+Use case: style-transfer. Create a new boss-arena background in detailed crisp pixel art. Image 1 is the mandatory architecture/composition reference for Kaya's Mansion from One Piece: match its modest two-story cream-white facade, pale blue mansard roof with dormers, distinctive curved central gable, central arched windows and rounded balcony above the entry, low white metal fence with a black central gate, huge broad green tree immediately to the LEFT, smaller shrubs to the right, open grassy estate and approach path. The house is NOT a sprawling castle, do not use image 2's mansion architecture. Image 2 is only the target pixel-art medium and dusk color mood. Landscape 1536x1024 side-view platformer background. Enlarge the image-1 house to occupy the central 55 percent of width, entire roof visible, front elevation. Place mansion and fence in upper 70 percent of image with a flat uninterrupted courtyard across bottom 30 percent for boss combat. Use blue-lavender dusk sky, blue roof, cream walls, gentle amber windows, deep green foliage, crisp dark pixel clusters matching image2 style. Keep iconic image1 building silhouette and tree placement. No characters, UI, text, floating platforms or red roofs.

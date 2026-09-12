@@ -8,7 +8,7 @@ Chapter 01 update: [Orange Town and Buggy](CHAPTER_01.md) now defines the curren
 
 Play as pre-timeskip Monkey D. Luffy in a pixel-art action platformer with demanding but readable combat, interwoven routes, memorable One Piece bosses, and a home aboard the Thousand Sunny. Dash through an attack, land a stretched punch, open a shortcut, and return to the crew stronger than before.
 
-The Sunny is available from the beginning. This is a deliberately condensed alternate retelling: familiar islands and enemies retain their broad order, while crew availability, ship timing, and power unlocks are adapted for the game. Gear 2 after the third boss is an intentional change to the original story. Later chapters below are a proposed roadmap, not first-build scope.
+The Sunny is available from the beginning. This is a deliberately condensed alternate retelling: familiar islands and enemies retain their broad order, while crew availability, ship timing, and power unlocks are adapted for the game. Gear 2 after Kuro is an intentional change to the original story. Later chapters below are a proposed roadmap, not first-build scope.
 
 ## Design pillars
 
@@ -37,7 +37,7 @@ Islands are distinct interconnected regions selected from Nami's chart. Inside a
 
 There is no stamina cost for basic movement or ordinary punches. The souls-like tension comes from timing, healing commitment, recovery after attacks, checkpoints, and recovering dropped currency. The first prototype does not need parrying, weapon switching, or a large combo tree.
 
-Suggested controls: A/D or left stick to move; Space / south face button to jump; Shift / right shoulder to dash; J / west face button to attack; K / north face button to heal; E / interact prompt to interact; Q / left shoulder for Gear 2 once unlocked. Support rebinding and controller prompts before a public demo.
+Current keyboard controls: A/D move, W jumps/climbs, S drops/descends, Space dashes, left mouse punches toward the pointer, F heals, E interacts, Q uses Bazooka, R uses Gatling, and X activates Gear 2 after Kuro. During Gear 2, hold left mouse for rapid punches and right click for Jet Stamp. Controller support and rebinding remain future work.
 
 ### Initial tuning hypotheses
 
@@ -87,8 +87,8 @@ Suggested first shop inventory: island map, single-use return item, and a meal t
 | Chapter | Boss | Combat lesson | Permanent reward / world change |
 |---|---|---|---|
 | 1 · Orange Town | Buggy | Dash timing; choose safe moments to punish | First captain victory; dock access and Nami's next voyage |
-| 2 · Syrup Village | Kuro | Fast approach tells; resist chasing | Second captain victory; rubber wall rebound opens vertical routes |
-| 3 · Baratie | Don Krieg | Armor openings; punish committed attacks | Third captain victory; unlock Gear 2 after returning to the Sunny |
+| 2 · Syrup Village | Kuro | Fast approach tells; resist chasing | Second captain victory; unlock Gear 2 |
+| 3 · Baratie | Don Krieg | Armor openings; punish committed attacks | Third captain victory; further progression to be designed |
 | 4 · Arlong Park | Arlong | Water hazards; controlled aggression | Rubber grapple for clearly marked anchors; optional East Blue routes |
 | 5 · Alabasta | Crocodile | Arena control; interact with water sources to expose him | Gear 2 efficiency upgrade and route toward the sky islands |
 | 6 · Skypiea | Enel | Vertical hazards and timing | Advanced aerial recovery; narrative reactions to Luffy's rubber body |
@@ -96,11 +96,11 @@ Suggested first shop inventory: island map, single-use return item, and a meal t
 
 The Buggy prototype is the first deliverable. The three-boss East Blue arc is the next meaningful milestone. Arlong and everything beyond remain expansion scope until the basic game feels good.
 
-### Gear 2: the three-boss payoff
+### Gear 2: the Kuro reward
 
-Defeat Buggy, Kuro, and Don Krieg. Store their unique boss IDs as permanent victories. When all three are present, Sanji's galley gains a short recovery/training interaction that unlocks Gear 2 and a nearby practice encounter. Repeated victories over one boss must not count as three.
+Defeating Kuro permanently unlocks Gear 2, including existing saves with his victory recorded. Press X while grounded to enter a 0.6-second ground-fist stance. All ability charge is spent: one full bar grants 3 seconds, two grant 7 seconds, and three grant 13 seconds. Any partial remainder is spent too; at least one full bar is required. Taking damage interrupts startup without a refund.
 
-After unlocking it, dealing damage fills a 0–100 Drive meter. At full meter, activate an approximately eight-second transformation: steam, subtly pink skin, quicker punch recovery, a shorter dash cooldown, and Jet Pistol replacing the charged punch. Start with roughly 20% faster attack recovery; tune through playtesting. The meter cannot refill while transformed, and taking damage does not generate Drive.
+During the buff Luffy has warm red skin, a subtle glow and steam. Hold left mouse to punch automatically at twice the base speed; dash cooldown drops from 0.65 to 0.325 seconds. Right click launches an aimed Jet Stamp, dealing 12 times the current level's base punch damage, matching Bazooka and immediately ending Gear 2. Normal punches can still build charge during the buff. Rest, death and room changes clear the temporary state.
 
 When time expires, return to the base kit without forced immobility. Activation offers a short readable animation, not a free heal. Gear 2 must feel powerful without making every boss damage window safe. Mandatory traversal depends on permanent movement abilities; Gear 2 initially opens optional speed challenges so an empty meter cannot trap the player.
 
@@ -124,7 +124,7 @@ Introduce each enemy alone before mixing them. Keep Marines' off-white uniforms 
 
 **Fairness rules:** show the wind-up before an attack becomes harmful; preserve at least one reachable safe region; do not spawn bombs underneath Luffy; distinguish harmless decoration from projectiles; keep phase transitions consistent after retries.
 
-**Reward:** boss victory persists immediately, Berries go directly to the player, the next route unlocks, and the Sunny gains a new conversation. Gear 2 progress displays as one of three captain victories.
+**Reward:** boss victory persists immediately, Berries go directly to the player, the next route unlocks, and the Sunny gains a new conversation. Buggy unlocks Gatling; Kuro unlocks Gear 2.
 
 ## Visual and audio direction
 
@@ -138,6 +138,6 @@ Audio priorities: distinct attack tells, elastic punch/recoil sounds, a dash cue
 
 Aim for 15–25 minutes for a new player: Sunny deck → Orange Town dock tutorial → street fight → rooftop branch with a hidden health fragment → Marine lane → shortcut to dock → pre-boss rest → Buggy courtyard → return to the Sunny.
 
-The prototype includes run, variable jump, ground/air dash, light combo, charged punch, healing, three grunt archetypes, one boss, rest/death/recovery, one shop, one optional pickup, and saving. It does not include the entire campaign. A developer-only Gear 2 preview can test the eventual payoff, but ordinary progression must leave it locked until the three-boss milestone exists.
+The prototype includes run, variable jump, ground/air dash, light combo, charged punch, healing, three grunt archetypes, one boss, rest/death/recovery, one shop, one optional pickup, and saving. It does not include the entire campaign. The playable Chapter 2 now unlocks Gear 2 after Kuro.
 
 Success means a player understands the dash window, can read Buggy's attacks after a few attempts, opens a meaningful shortcut, uses the Sunny's services, and wants to try the next island.

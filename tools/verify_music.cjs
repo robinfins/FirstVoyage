@@ -42,7 +42,7 @@ console.log('  density per step  hub %s  stage %s  boss %s',
 // ---------------------------------------------------------------- effects
 const fs=require('fs'),path=require('path');
 const Sfx=require('../play/sfx.js');
-const src=fs.readFileSync(path.join(__dirname,'../play/core.js'),'utf8');
+const src=['core.js','chapter-two.js'].map(name=>fs.readFileSync(path.join(__dirname,'../play',name),'utf8')).join('\n');
 const emitted=[...new Set([...src.matchAll(/emit\(['"]([a-z-]+)['"]/g)].map(m=>m[1]))].sort();
 const SILENT=new Set(['save','stage']);        // bookkeeping, deliberately silent
 const cued=new Set(Sfx.list);

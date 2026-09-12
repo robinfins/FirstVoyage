@@ -42,11 +42,11 @@ Convert the approved generated concepts into consistent pixel sprites, animation
 
 **Done when:** the entire 15–25-minute slice can be finished without developer tools; art matches collision; text is readable; controller-only navigation works; at least a few fresh players can learn and defeat Buggy. Collect observations before extending scope.
 
-## 7. Three-boss arc and Gear 2
+## 7. Chapter 2 and Gear 2
 
-Reuse systems to add Syrup Village/Kuro, then Baratie/Don Krieg. Build Gear 2's meter and transformation as data-driven modifications to the existing kit. Gate it on the three unique boss victories and the Sunny interaction.
+Syrup Village and Kuro are playable. Gear 2 now unlocks after Kuro and spends the shared ability bars for a 3/7/13-second buff. Baratie and Don Krieg remain future scope.
 
-**Done when:** ordinary play unlocks Gear 2 only after the three required bosses; reload preserves the unlock; death and room changes clear temporary transformation state correctly; transformed stats never permanently accumulate; base form remains viable.
+**Done when:** ordinary play unlocks Gear 2 only after Kuro; reload preserves the unlock; death and room changes clear temporary transformation state correctly; transformed stats never permanently accumulate; base form remains viable.
 
 ## Suggested implementation structure
 

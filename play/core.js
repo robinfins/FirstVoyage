@@ -60,6 +60,7 @@ const TYPES={cutlass:{hp:5,speed:155,range:132,wind:.36,recover:.42,damage:1,jum
 const LEVELS=[{damage:1,maxHp:5},{damage:1.5,maxHp:6},{damage:2,maxHp:7}];
 const METER={max:300,bar:100,perHit:20};
 const SPECIALS={
+ jetstamp:{name:'Gum-Gum Jet Stamp',cost:0,duration:.72,startup:.25,pulses:1,interval:0,reach:200,radius:35,damage:12},
  bazooka:{name:'Gum-Gum Bazooka',cost:200,duration:1.12,startup:.62,pulses:1,interval:0,reach:210,radius:35,damage:12},
  gatling:{name:'Gum-Gum Gatling',cost:300,duration:1.8,startup:.18,pulses:18,interval:.085,reach:165,radius:30,damage:1}
 };
@@ -110,7 +111,7 @@ class Game {
  loadStage(stage,back=false) {
   this.stage=stage;this.world=STAGES[stage];this.projectiles=[];this.effects=[];this.boss=null;this.bossStarted=false;
   this.enemies=this.world.enemies.map((e,i)=>({...e,id:stage+'-'+i,y:e.y||430,home:e.x,vx:0,vy:0,grounded:true,platform:'',drop:0,aggro:0,navTimer:0,combo:0,hp:e.hp||Math.round(TYPES[e.type].hp*(this.world.enemyHp||1)),maxHp:e.hp||Math.round(TYPES[e.type].hp*(this.world.enemyHp||1)),state:'idle',timer:.3+i*.2,facing:-1,hit:0,attackCount:0}));
-  const spawn=this.world.spawn;this.player={x:back?this.world.width-150:spawn.x,y:spawn.y,vx:0,vy:0,w:22,h:45,grounded:true,facing:1,coyote:.1,jumpBuffer:0,dash:0,dashCd:0,airDash:true,invuln:.6,attack:null,special:null,attackCd:0,drop:0,stairs:false,platform:'',lastSafe:{x:spawn.x,y:spawn.y}};
+  const spawn=this.world.spawn;this.player={x:back?this.world.width-150:spawn.x,y:spawn.y,vx:0,vy:0,w:22,h:45,grounded:true,facing:1,gear:0,gearIntro:0,gearDuration:0,gearFade:0,dashMax:.65,coyote:.1,jumpBuffer:0,dash:0,dashCd:0,airDash:true,invuln:.6,attack:null,special:null,attackCd:0,drop:0,stairs:false,platform:'',lastSafe:{x:spawn.x,y:spawn.y}};
   if(stage==='sunny')this.player.x=back?1240:400;
   if(stage==='circus'&&!this.buggyDefeated)this.spawnBoss();
   if(stage==='mansion'&&!this.kuroDefeated)this.spawnBoss();
@@ -132,7 +133,7 @@ class Game {
   }
   return null;
  }
- interact(){if(this.player.special||this.healTime||this.resting)return;const c=this.context();if(!c)return;
+ interact(){if(this.player.gearIntro||this.player.special||this.healTime||this.resting)return;const c=this.context();if(!c)return;
   if(c.kind==='rematch'){this.spawnBoss();this.projectiles=[];this.victoryTime=0;this.bossStarted=false;this.player.x=300;this.say(this.stage==='mansion'?'Kuro: You should have stayed away.':'Buggy: Back for another round?',3);return;}
   if(c.kind==='checkpoint'){
    if(this.enemies.some(e=>e.hp>0&&Math.hypot(e.x-this.player.x,e.y-this.player.y)<185)){this.say('Defeat the nearby pirate before resting.');return;}
@@ -146,20 +147,30 @@ class Game {
  travel(stage,id){if(!this.resting||!this.visited.some(v=>v.stage===stage&&v.id===id)||!STAGES[stage]?.checkpoints.some(c=>c.id===id))return false;
   this.checkpoint={stage,id};this.loadStage(stage);this.placeAtCheckpoint();this.say('Resting at '+STAGES[stage].checkpoints.find(c=>c.id===id).name,3);this.hp=this.maxHp;this.heals=3;this.requestSave();return true;
  }
- heal(){const p=this.player;if(this.dead||this.resting||this.healTime||this.hp>=this.maxHp||this.heals<=0||p.special||p.attack||p.dash||!p.grounded||p.stairs)return false;this.heals--;this.healTime=.65;return true;}
+ heal(){const p=this.player;if(p.gearIntro||this.dead||this.resting||this.healTime||this.hp>=this.maxHp||this.heals<=0||p.special||p.attack||p.dash||!p.grounded||p.stairs)return false;this.heals--;this.healTime=.65;return true;}
  hurt(amount,fromX){const p=this.player;if(this.resting||this.dead||p.invuln>0||p.dash>0)return false;
-  this.healTime=0;this.hp=Math.max(0,this.hp-amount);p.invuln=1;if(!p.special){p.vx=(p.x<fromX?-1:1)*190;p.vy=-120;p.grounded=false;}p.stairs=false;this.emit('hurt');
+  if(p.gearIntro){p.gearIntro=0;p.gearDuration=0;}this.healTime=0;this.hp=Math.max(0,this.hp-amount);p.invuln=1;if(!p.special){p.vx=(p.x<fromX?-1:1)*190;p.vy=-120;p.grounded=false;}p.stairs=false;this.emit('hurt');
   if(!this.hp)this.die();return true;
  }
- die(){if(this.dead)return;this.meter=0;this.player.special=null;this.player.attack=null;this.dead=1.6;this.deaths++;this.satchel={stage:this.stage,...this.player.lastSafe,amount:this.berries};this.berries=0;this.projectiles=[];this.requestSave();this.emit('death');this.say('Your voyage isn’t over.',2);}
+ die(){if(this.dead)return;this.player.gear=0;this.player.gearIntro=0;this.player.gearFade=0;this.meter=0;this.player.special=null;this.player.attack=null;this.dead=1.6;this.deaths++;this.satchel={stage:this.stage,...this.player.lastSafe,amount:this.berries};this.berries=0;this.projectiles=[];this.requestSave();this.emit('death');this.say('Your voyage isn’t over.',2);}
  respawn(){this.resting=false;this.healTime=0;this.heals=3;this.meter=0;this.hp=this.maxHp;this.dead=0;this.loadStage(this.checkpoint.stage);this.placeAtCheckpoint();this.say('Back at the last signal station. Recover your berries.',4);}
- startAttack(aim){const p=this.player;if(this.healTime||p.special||p.attackCd>0||p.dash>0||this.dead)return false;
+ startGear(){const p=this.player;if(!this.kuroDefeated){this.say('Defeat Kuro to unlock Gear 2.',2);return false;}
+  if(this.dead||this.resting||this.healTime||p.gear||p.gearIntro||p.special||p.attack||p.dash||!p.grounded||p.stairs)return false;
+  const bars=Math.floor(this.meter/100);if(!bars){this.say('Gear 2 needs at least one full bar.',2);return false;}
+  this.meter=0;p.gearDuration=[0,3,7,13][bars];p.gearIntro=.6;p.vx=0;p.vy=0;p.jumpBuffer=0;this.emit('gear-start');return true;
+ }
+ endGear(reason='timeout'){const p=this.player;if(!p.gear)return;p.gear=0;p.gearFade=.65;this.emit('gear-end',{reason});}
+ jetStamp(aim){const p=this.player;if(!p.gear||this.dead||this.resting||p.special||p.dash||this.healTime)return false;
+  const dx=aim.x-p.x,dy=aim.y-(p.y-26),len=Math.hypot(dx,dy)||1;p.facing=dx<0?-1:1;p.attack=null;this.endGear('stamp');
+  p.vx=0;p.jumpBuffer=0;p.special={kind:'jetstamp',t:0,pulse:0,dx:dx/len,dy:dy/len};this.say('Gum-Gum Jet Stamp',1.5);this.emit('special-start',{kind:'jetstamp'});return true;
+ }
+ startAttack(aim){const p=this.player;if(p.gearIntro||this.healTime||p.special||p.attackCd>0||p.dash>0||this.dead)return false;
   const dx=aim.x-p.x,dy=aim.y-(p.y-26),len=Math.hypot(dx,dy)||1;
-  p.facing=dx<0?-1:1;p.attack={id:++this.attackSerial,t:0,dx:dx/len,dy:dy/len,hit:new Set()};p.attackCd=.33;this.emit('punch');return true;
+  p.facing=dx<0?-1:1;p.attack={id:++this.attackSerial,t:0,dx:dx/len,dy:dy/len,speed:p.gear?2:1,hit:new Set()};p.attackCd=p.gear?.165:.33;this.emit('punch');return true;
  }
  gainMeter(){const before=this.meter;this.meter=Math.min(METER.max,this.meter+METER.perHit);if(Math.floor(before/100)<Math.floor(this.meter/100))this.emit('meter-bar',{bars:Math.floor(this.meter/100)});}
  startSpecial(kind,aim){const p=this.player,spec=SPECIALS[kind];
-  if(!spec||this.dead||this.healTime||p.special)return false;
+  if(kind==='jetstamp'||p.gearIntro||!spec||this.dead||this.healTime||p.special)return false;
   if(kind==='gatling'&&!this.buggyDefeated){this.say('Defeat Buggy to unlock Gum-Gum Gatling.',2);return false;}
   if(this.meter<spec.cost){this.say('Need '+spec.cost/100+' full bars.',1.4);return false;}
   if(!p.grounded||p.stairs){this.say('Land before using '+spec.name+'.',1.5);return false;}
@@ -187,22 +198,24 @@ class Game {
   if(e===this.boss){if(e.hp===0)this.win();}
   else {e.vx+=dx*70;if(!e.hp){this.berries+=e.type==='brute'?8:5;this.emit('coin');}}
  }
- win(){if(!this.boss||this.boss.state==='defeated')return;if(this.boss.kind==='kuro'){const first=!this.kuroDefeated;this.kuroDefeated=true;if(first)this.levelUp();if(first)this.berries+=100;this.projectiles=[];this.bossStarted=false;this.boss.state='defeated';this.victoryTime=5;this.say(first?'KURO DEFEATED · LEVEL 3 · Second captain victory · +1 health · +100 berries':'KURO DEFEATED · Rematch won!',6);this.requestSave();this.emit('victory');return;}const firstWin=!this.buggyDefeated;this.buggyDefeated=true;if(firstWin)this.levelUp();if(firstWin)this.berries+=50;this.projectiles=[];this.bossStarted=false;this.victoryTime=5;
+ win(){if(!this.boss||this.boss.state==='defeated')return;if(this.boss.kind==='kuro'){const first=!this.kuroDefeated;this.kuroDefeated=true;if(first)this.levelUp();if(first)this.berries+=100;this.projectiles=[];this.bossStarted=false;this.boss.state='defeated';this.victoryTime=5;this.say(first?'KURO DEFEATED · LEVEL 3 · Gear 2 unlocked · +1 health · +100 berries':'KURO DEFEATED · Rematch won!',6);this.requestSave();this.emit('victory');return;}const firstWin=!this.buggyDefeated;this.buggyDefeated=true;if(firstWin)this.levelUp();if(firstWin)this.berries+=50;this.projectiles=[];this.bossStarted=false;this.victoryTime=5;
   this.boss.state='defeated';this.boss.y=this.world.floor;this.boss.vy=0;this.say(firstWin?'BUGGY DEFEATED · LEVEL 2 · Gatling unlocked · +1 health · +50 berries':'BUGGY DEFEATED · Rematch won!',7);this.requestSave();this.emit('victory');}
  step(dt,input={}){
   if(this.resting)return;
   dt=clamp(dt,0,1/30);this.time+=dt;this.messageTime=Math.max(0,this.messageTime-dt);this.victoryTime=Math.max(0,this.victoryTime-dt);
   this.effects=this.effects.filter(e=>(e.t-=dt)>0);
   if(this.dead){this.dead-=dt;if(this.dead<=0)this.respawn();return;}
-  const p=this.player;p.invuln=Math.max(0,p.invuln-dt);p.dashCd=Math.max(0,p.dashCd-dt);p.attackCd=Math.max(0,p.attackCd-dt);p.drop=Math.max(0,p.drop-dt);
+  const p=this.player;p.gearFade=Math.max(0,(p.gearFade||0)-dt);if(p.gear>0){if(p.gear<=dt)this.endGear();else p.gear-=dt;}if(p.gearIntro>0){p.gearIntro=Math.max(0,p.gearIntro-dt);if(!p.gearIntro){p.gear=p.gearDuration;this.emit("gear-active");}}p.invuln=Math.max(0,p.invuln-dt);p.dashCd=Math.max(0,p.dashCd-dt);p.attackCd=Math.max(0,p.attackCd-dt);p.drop=Math.max(0,p.drop-dt);
   if(input.interact)this.interact();
   if(this.player!==p||this.resting)return;
-  if(input.heal)this.heal();
+  if(input.gear)this.startGear();
+  if(input.jet)this.jetStamp(input.aim||{x:p.x+p.facing*200,y:p.y-26});
+  if(input.heal&&!p.gearIntro)this.heal();
   if(this.healTime>0){this.healTime=Math.max(0,this.healTime-dt);if(!this.healTime){this.hp=Math.min(this.maxHp,this.hp+1);this.emit("heal");}}
   const aim=input.aim||{x:p.x+p.facing*150,y:p.y-26};
   if(input.gatling)this.startSpecial('gatling',aim);else if(input.bazooka)this.startSpecial('bazooka',aim);
   if(p.special&&input.dash&&p.dashCd===0&&p.airDash){p.special=null;this.emit('special-cancel');}
-  const casting=!!p.special||this.healTime>0;
+  const casting=!!p.special||this.healTime>0||p.gearIntro>0;
   const move=casting?0:(input.right?1:0)-(input.left?1:0);
   const nearStair=this.stage==='sunny'&&Math.abs(p.x-SHIP.stairX)<38&&p.y>=SHIP.upper-3&&p.y<=SHIP.lower+3;
   if(!casting&&nearStair&&((input.up&&p.y>SHIP.upper)||(input.down&&p.y<SHIP.lower))){p.stairs=true;p.attack=null;}
@@ -215,7 +228,7 @@ class Game {
    if(input.drop&&!casting&&p.grounded&&p.platform!=='lower'&&p.y<this.world.floor-5){p.drop=.23;p.grounded=false;p.y+=3;}
    if(p.jumpBuffer>0&&p.coyote>0&&p.drop===0){p.vy=-465;p.grounded=false;p.coyote=0;p.jumpBuffer=0;this.emit('jump');}
    if(!input.up&&p.vy<-160)p.vy+=1350*dt;
-   if(input.dash&&!this.healTime&&p.dashCd===0&&p.airDash){p.dash=.16;p.dashCd=.65;p.airDash=false;p.vy=0;p.attack=null;p.facing=move||p.facing;this.emit('dash');}
+   if(input.dash&&!p.gearIntro&&!this.healTime&&p.dashCd===0&&p.airDash){p.dash=.16;p.dashMax=p.gear?.325:.65;p.dashCd=p.dashMax;p.airDash=false;p.vy=0;p.attack=null;p.facing=move||p.facing;this.emit('dash');}
    if(p.dash>0){p.dash=Math.max(0,p.dash-dt);p.vx=p.facing*650;p.vy=0;}
    else {const target=move*205;p.vx+=(target-p.vx)*Math.min(1,dt*(p.grounded?22:12));p.vy=Math.min(680,p.vy+1000*dt);if(move)p.facing=move;}
    if(p.grounded){const f=this.platforms().find(f=>f.id===p.platform);if(f?.motion){const before=this.platforms(this.time-dt).find(q=>q.id===f.id);p.x+=f.x-before.x;p.y+=f.y-before.y;}}
@@ -230,8 +243,8 @@ class Game {
    for(const h of this.world.hazards||[])if(p.x>h.x-7&&p.x<h.end+7&&p.y>h.y-13&&p.y<h.y+15)this.hurt(1,(h.x+h.end)/2);
    if(p.y>this.world.floor+170){p.invuln=0;this.hurt(1,p.x);if(!this.dead){p.x=p.lastSafe.x;p.y=p.lastSafe.y;p.vx=0;p.vy=0;}}
   }
-  if(input.attack)this.startAttack(input.aim||{x:p.x+p.facing*150,y:p.y-26});
-  if(p.attack){const a=p.attack;a.t+=dt;if(a.t>=.07&&a.t<=.19){
+  if(input.attack||(input.attackHeld&&p.gear>0))this.startAttack(input.aim||{x:p.x+p.facing*150,y:p.y-26});
+  if(p.attack){const a=p.attack;a.t+=dt*(a.speed||1);if(a.t>=.07&&a.t<=.19){
    const ox=p.x,oy=p.y-26;
    for(const e of [...this.enemies,...(this.boss?[this.boss]:[])])if(e.hp>0&&!a.hit.has(e)&&lineDistance(e.x,e.y-(e===this.boss?34:24),ox,oy,ox+a.dx*116,oy+a.dy*116)<(e===this.boss?33:26)){
     if(e===this.boss&&e.state==='split')continue;
