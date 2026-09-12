@@ -49,6 +49,13 @@ def label(s,x,y,scale,color):
   glyph=FONT.get(ch if ch in FONT else ch.upper(),FONT[' ']).split('|')
   out.append(bitmap(glyph,x+i*4*scale,y,scale,{'#':color}))
  return ''.join(out)
+def oval(cx,cy,rx,ry,color,o=1):
+ """Filled pixel ellipse from horizontal runs, so edges stay square."""
+ out=[]
+ for dy in range(-ry,ry+1):
+  w=int(round(rx*math.sqrt(max(0,1-(dy/ry)**2))))
+  if w: out.append(rect(cx-w,cy+dy,w*2,1,color,o))
+ return ''.join(out)
 def disc(cx,cy,r,color,o=1):
  """Filled pixel circle built from horizontal runs, so edges stay square."""
  out=[]
@@ -147,6 +154,28 @@ coin=(disc(7,7,7,EDGE)+disc(7,7,6,'#f0c273')+disc(7,7,5,'#e0ae59')
  +disc(7,7,3,'#c98c3d')+label('B',6,5,1,'#4f3412'))
 LEVEL_W=56
 level_badge=(plate(LEVEL_W,22,'#2b4a3c',RIM_HI,.9)+label('LVL',9,6,2,'#ffe6bd'))
+# Gear 2 sits beside the level badge on the same row, in the same plate language. The well on the
+# right drains while the transformation runs; the label is baked so it stays as crisp as the HUD.
+GEAR_W=150
+gear_badge=(plate(GEAR_W,22,'#5a2320',RIM_HI,.9)+well(7,4,14,14)+label('X',11,6,2,'#ffd0a8')
+ +label('GEAR 2',26,6,2,'#ffe6bd')+well(78,7,64,8))
+gear_fill=(rect(0,0,64,8,'#e8623c')+rect(0,0,64,1,'#ffd0a0')+rect(0,1,64,2,'#ff8a5c')
+ +rect(0,6,64,2,'#8d2f1c'))
+
+# Meat on the bone. The old icon read as a brown rock; this one leads with the silhouette —
+# two knuckles and a shaft on the left, one heavy round of meat on the right.
+BONE_EDGE='#2a2331'; BONE='#f2e8cf'; BONE_LO='#c6b795'
+MEAT_EDGE='#2b191d'; MEAT_LO='#7c3220'; MEAT='#ab4b28'; MEAT_HI='#c96a38'; MEAT_LIT='#e59a5c'
+def meat_icon():
+ # The bone reads from its silhouette, so the knuckles have to clearly stand proud of the shaft:
+ # an earlier version used a thick shaft with small knobs and the whole end merged into one blob.
+ out=[rect(7,26,18,7,BONE_EDGE),disc(7,24,6,BONE_EDGE),disc(7,33,6,BONE_EDGE)]
+ out+=[rect(8,27,17,5,BONE),disc(7,24,4,BONE),disc(7,33,4,BONE)]
+ out+=[rect(8,31,16,1,BONE_LO),disc(6,23,2,'#ffffff')]
+ # One heavy round of meat, wider than tall, sitting over the far end of the bone.
+ out+=[oval(32,16,15,13,MEAT_EDGE),oval(32,16,13,11,MEAT_LO),oval(32,15,12,10,MEAT)]
+ out+=[oval(34,20,9,5,MEAT_LO),oval(28,11,7,5,MEAT_HI),oval(26,10,4,3,MEAT_LIT)]
+ return ''.join(out)
 
 # ---------------------------------------------------------------- world signposts
 WOOD='#8d5c33'; WOOD_HI='#b8824a'; WOOD_LO='#5d3a1e'; WOOD_EDGE='#33200f'
@@ -226,6 +255,8 @@ assets=[('player-frame',204,36,player),('player-fill',152,12,pfill),
  ('hud-meter-fill-hot',73,10,meter_hot),('hud-dash-fill',187,4,dash_fill),
  ('hud-glyphs',len(GLYPH_ORDER)*8-2,10,glyphs),('hud-lock',11,11,lock),
  ('hud-coin',14,14,coin),('hud-level-badge',LEVEL_W,22,level_badge),
+ ('hud-gear-badge',GEAR_W,22,gear_badge),('hud-gear-fill',64,8,gear_fill),
+ ('meat',48,38,meat_icon()),
  ('hud-boss-frame',BW,BH,boss_plate),('hud-boss-fill',528,14,boss_bar_fill),
  ('hud-boss-trail',528,14,boss_trail),('hud-boss-grid',528,14,boss_grid)]
 SIGN_ASSETS=[('sign-post',SIGN_W,SIGN_H,signpost()),('sign-arrow',ARROW_W,ARROW_H,sign_arrow)]
@@ -249,7 +280,8 @@ config={'viewport':[640,360],
   'keys':[{'move':'bazooka','cap':[64,79,14,14],'label':[82,81],'cost':2},{'move':'gatling','cap':[166,79,14,14],'label':[184,81],'cost':3,'lock':'hud-lock.svg'}],
   'glyphs':{'file':'hud-glyphs.svg','order':GLYPH_ORDER,'cell':[6,10],'advance':8},
   'berries':{'coin':'hud-coin.svg','coin_anchor':[110,8],'value_anchor':[128,10]},
-  'level':{'file':'hud-level-badge.svg','size':[LEVEL_W,22],'screen_anchor':[16,120],'value_anchor':[41,6]}},
+  'level':{'file':'hud-level-badge.svg','size':[LEVEL_W,22],'screen_anchor':[16,120],'value_anchor':[41,6]},
+  'gear':{'file':'hud-gear-badge.svg','fill':'hud-gear-fill.svg','size':[GEAR_W,22],'screen_anchor':[80,120],'fill_rect':[78,7,64,8]}},
  'signpost':{'used_by':'play/game.js drawExits','board':'../props/sign-post.svg','size':[SIGN_W,SIGN_H],'label_anchor':[SIGN_W//2,7],'label_advance':10,'arrow':'../props/sign-arrow.svg','arrow_size':[ARROW_W,ARROW_H],'arrow_anchor':[SIGN_W//2,17],'foot_offset':SIGN_H-4},
  'boss_console':{'used_by':'play/game.js, drawn 1:1 in 960x540 screen space','frame':'hud-boss-frame.svg','frame_size':[BW,BH],'screen_anchor':[200,484],
   'health':{'fill':'hud-boss-fill.svg','trail':'hud-boss-trail.svg','grid':'hud-boss-grid.svg','rect':[16,24,528,14],'trail_delay_seconds':0.35,'phase_two_marker':0.5},

@@ -161,6 +161,24 @@
         41,
         6
       ]
+    },
+    "gear": {
+      "file": "hud-gear-badge.svg",
+      "fill": "hud-gear-fill.svg",
+      "size": [
+        150,
+        22
+      ],
+      "screen_anchor": [
+        80,
+        120
+      ],
+      "fill_rect": [
+        78,
+        7,
+        64,
+        8
+      ]
     }
   },
   "signpost": {

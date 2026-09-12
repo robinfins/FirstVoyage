@@ -198,8 +198,8 @@ class Game {
   if(e===this.boss){if(e.hp===0)this.win();}
   else {e.vx+=dx*70;if(!e.hp){this.berries+=e.type==='brute'?8:5;this.emit('coin');}}
  }
- win(){if(!this.boss||this.boss.state==='defeated')return;if(this.boss.kind==='kuro'){const first=!this.kuroDefeated;this.kuroDefeated=true;if(first)this.levelUp();if(first)this.berries+=100;this.projectiles=[];this.bossStarted=false;this.boss.state='defeated';this.victoryTime=5;this.say(first?'KURO DEFEATED · LEVEL 3 · Gear 2 unlocked · +1 health · +100 berries':'KURO DEFEATED · Rematch won!',6);this.requestSave();this.emit('victory');return;}const firstWin=!this.buggyDefeated;this.buggyDefeated=true;if(firstWin)this.levelUp();if(firstWin)this.berries+=50;this.projectiles=[];this.bossStarted=false;this.victoryTime=5;
-  this.boss.state='defeated';this.boss.y=this.world.floor;this.boss.vy=0;this.say(firstWin?'BUGGY DEFEATED · LEVEL 2 · Gatling unlocked · +1 health · +50 berries':'BUGGY DEFEATED · Rematch won!',7);this.requestSave();this.emit('victory');}
+ win(){if(!this.boss||this.boss.state==='defeated')return;if(this.boss.kind==='kuro'){const first=!this.kuroDefeated;this.kuroDefeated=true;if(first)this.levelUp();if(first)this.berries+=100;this.projectiles=[];this.bossStarted=false;this.boss.state='defeated';this.victoryTime=5;this.say(first?'KURO DEFEATED · LEVEL 3 · Gear 2 unlocked · +1 health · +100 berries':'KURO DEFEATED · Rematch won!',6);this.requestSave();this.emit('victory',{first,boss:'kuro'});return;}const firstWin=!this.buggyDefeated;this.buggyDefeated=true;if(firstWin)this.levelUp();if(firstWin)this.berries+=50;this.projectiles=[];this.bossStarted=false;this.victoryTime=5;
+  this.boss.state='defeated';this.boss.y=this.world.floor;this.boss.vy=0;this.say(firstWin?'BUGGY DEFEATED · LEVEL 2 · Gatling unlocked · +1 health · +50 berries':'BUGGY DEFEATED · Rematch won!',7);this.requestSave();this.emit('victory',{first:firstWin,boss:'buggy'});}
  step(dt,input={}){
   if(this.resting)return;
   dt=clamp(dt,0,1/30);this.time+=dt;this.messageTime=Math.max(0,this.messageTime-dt);this.victoryTime=Math.max(0,this.victoryTime-dt);

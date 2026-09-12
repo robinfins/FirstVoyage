@@ -11,7 +11,7 @@ let music=true,scoreTrack=null;
 try{saved=PirateGame.validSave(JSON.parse(localStorage.getItem(SAVE_KEY)));}catch{saveAvailable=false;}
 game=new Game(saved);game.events=[];
 // Bump when regenerated art must defeat a cached copy; script ?v= tags do not cover asset files.
-const ASSET_V='kuro7';
+const ASSET_V='gear10';
 function load(key,path){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>resolve(key);im.src='../assets/chapter-01/'+path+'?v='+ASSET_V;});}
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
@@ -19,7 +19,7 @@ for(const [key,path] of [['kaya-mansion','kaya-mansion-arena-v2.png'],['syrup-sk
 assets.push(['meat','ui/meat.svg'],['jet-stamp','motion/luffy-jet-stamp.png']);
 assets.push(['luffy-motion','motion/luffy-motion.png'],['luffy-stride','motion/luffy-stride.png']);
 assets.push(['terrain','terrain/pirate-terrain-atlas.png'],['sunny-rails','layers/sunny-rails-foreground.png']);
-for(const name of ['hud-console','hud-health-fill','hud-health-grid-5','hud-health-grid-6','hud-health-grid-7','hud-meter-fill','hud-meter-fill-hot','hud-dash-fill','hud-glyphs','hud-lock','hud-coin','hud-boss-frame','hud-boss-fill','hud-boss-trail','hud-boss-grid','hud-level-badge'])assets.push([name,'ui/'+name+'.svg']);
+for(const name of ['hud-console','hud-health-fill','hud-health-grid-5','hud-health-grid-6','hud-health-grid-7','hud-meter-fill','hud-meter-fill-hot','hud-dash-fill','hud-glyphs','hud-lock','hud-coin','hud-boss-frame','hud-boss-fill','hud-boss-trail','hud-boss-grid','hud-level-badge','hud-gear-badge','hud-gear-fill'])assets.push([name,'ui/'+name+'.svg']);
 assets.push(['sign-post','props/sign-post.svg'],['sign-arrow','props/sign-arrow.svg'],['circus-base','layers/circus-base.svg']);
 Promise.all(assets.map(([key,path])=>load(key,path))).then(results=>{
  const failures=results.filter(Boolean);if(failures.length){$('loading').textContent='Could not load '+failures.join(', ')+'. Reload to retry.';return;}
@@ -31,6 +31,38 @@ $('start').onclick=()=>begin(true);$('resume').onclick=()=>begin(false);
 function pause(value){if(!started)return;if(game.resting){if(!value)leaveRest();return;}paused=value;keys.clear();attackHeld=false;pressed={};$('pause-menu').hidden=!paused;$('pause-button').textContent=paused?'Resume · Esc':'Pause · Esc';if(!paused)canvas.focus();if(paused&&locked)document.exitPointerLock();else requestLock();Music.duck(paused);syncFullscreen();}
 function showRest(){paused=true;keys.clear();attackHeld=false;pressed={};accumulator=0;$('pause-menu').hidden=true;$('rest-menu').hidden=false;$('pause-button').textContent='Resume · Esc';if(locked)document.exitPointerLock();syncFullscreen();
  const list=$('travel-list');list.replaceChildren();for(const v of game.visited){const cp=STAGES[v.stage].checkpoints.find(c=>c.id===v.id);if(!cp)continue;const btn=document.createElement('button');btn.textContent=cp.name;btn.disabled=v.stage===game.checkpoint.stage&&v.id===game.checkpoint.id;btn.onclick=()=>{if(game.travel(v.stage,v.id)){processEvents();camera=targetCamera();showRest();}};list.append(btn);} $('leave-rest').focus();}
+// First clear of each captain explains what it just handed you. Copy follows the real numbers in
+// core.js, so it stays true if those are retuned.
+const UNLOCKS={
+ buggy:{eyebrow:'FIRST CAPTAIN DOWN',title:'Gum-Gum Gatling',key:'R',cost:'costs all three bars',
+  body:['<b>Eighteen punches in 1.8 seconds.</b> More total damage than Bazooka, but Luffy is committed for the whole barrage.',
+        'It starts after 0.18s, then lands a hit every 0.085s in a 165-pixel lane straight ahead.',
+        'Aim is locked when you start it, and you must be on firm ground.',
+        '<b>Dash cancels it</b> — but the bars are spent either way.'],
+  level:'LEVEL 2 · every attack hits harder · one more health segment'},
+ kuro:{eyebrow:'SECOND CAPTAIN DOWN',title:'Gear 2',key:'X',cost:'costs one, two or three bars',
+  body:['<b>Three, seven or thirteen seconds</b> of it, depending on how many full bars you spend.',
+        'Punches land <b>twice as fast</b> — hold the left mouse button to keep swinging instead of clicking each one.',
+        'Dash cools down in half the time, so you can reposition between openings.',
+        '<b>Right click for Gum-Gum Jet Stamp</b>, a Bazooka-strength finisher that ends Gear 2 early.',
+        'Activation takes 0.6s and leaves you standing still — <b>taking a hit cancels it</b> and the bars are gone.'],
+  level:'LEVEL 3 · every attack hits harder · one more health segment'}
+};
+function showUnlock(kind){const u=UNLOCKS[kind];if(!u)return;
+ paused=true;keys.clear();attackHeld=false;pressed={};accumulator=0;
+ $('unlock-eyebrow').textContent=u.eyebrow;$('unlock-title').textContent=u.title;
+ $('unlock-key').textContent=u.key;$('unlock-cost').textContent=u.cost;
+ $('unlock-level').textContent=u.level;
+ const list=$('unlock-body');list.replaceChildren();
+ for(const line of u.body){const li=document.createElement('li');li.innerHTML=line;list.append(li);}
+ $('unlock-menu').hidden=false;$('pause-button').textContent='Resume · Esc';
+ if(locked)document.exitPointerLock();
+ Music.duck(true);syncFullscreen();$('unlock-close').focus();
+}
+function closeUnlock(){$('unlock-menu').hidden=true;paused=false;accumulator=0;
+ keys.clear();attackHeld=false;pressed={};$('pause-button').textContent='Pause · Esc';
+ Music.duck(false);canvas.focus();syncFullscreen();}
+$('unlock-close').onclick=closeUnlock;
 function leaveRest(){game.closeRest();$('rest-menu').hidden=true;paused=false;accumulator=0;keys.clear();attackHeld=false;pressed={};$('pause-button').textContent='Pause · Esc';canvas.focus();syncFullscreen();}
 $('leave-rest').onclick=leaveRest;
 $('pause-button').onclick=()=>pause(!paused);$('unpause').onclick=()=>pause(false);
@@ -68,7 +100,7 @@ $('sound').onclick=()=>{sound=!sound;$('sound').textContent=sound?'Sound on':'So
 $('music').onclick=()=>{music=!music;$('music').textContent=music?'Music on':'Music off';$('music').setAttribute('aria-pressed',String(music));
  if(music){audio();scoreFor(true);}else Music.stop();canvas.focus();};
 window.addEventListener('keydown',e=>{
- if(e.code==='Escape'){if(fullscreen())return;e.preventDefault();if(!e.repeat)pause(!paused);return;}
+ if(e.code==='Escape'){if(fullscreen())return;e.preventDefault();if($('unlock-menu').hidden&&!e.repeat)pause(!paused);return;}
  if(!started||paused||document.activeElement!==canvas)return;
  if(['KeyW','KeyA','KeyS','KeyD','Space','KeyE','KeyQ','KeyR','KeyF','KeyX'].includes(e.code))e.preventDefault();
  if(!keys.has(e.code)){if(e.code==='KeyW')pressed.jump=true;if(e.code==='KeyS')pressed.drop=true;if(e.code==='Space')pressed.dash=true;if(e.code==='KeyE')pressed.interact=true;if(e.code==='KeyQ')pressed.bazooka=true;if(e.code==='KeyR')pressed.gatling=true;if(e.code==='KeyF')pressed.heal=true;if(e.code==='KeyX')pressed.gear=true;}
@@ -113,6 +145,7 @@ function processEvents(){for(const e of game.events){
  if(e.type==='stage'){camera=targetCamera();pressed={};scoreFor();}
  if(e.type==='hurt')shake=.18;
  if(e.type==='rest')showRest();
+ if(e.type==='victory'&&e.first)setTimeout(()=>{if(started&&!game.dead)showUnlock(e.boss);},2600);
  if(e.type==='boom')shake=.16;
  if(e.type==='special-pulse'&&['bazooka','jetstamp'].includes(e.kind))shake=.22;
  if(e.type==='gear-active'||e.type==='kuro-phase')shake=.12;
@@ -349,7 +382,9 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
  }
  image('hud-coin',ox+HUD.coin[0],oy+HUD.coin[1],14,14);glyphs(game.berries,ox+HUD.berries[0],oy+HUD.berries[1]);
  if(game.level>1){image('hud-level-badge',...HUD.stamp);glyphs(game.level,HUD.stamp[0]+41,HUD.stamp[1]+6);}
- ctx.fillStyle='#0b1629ee';ctx.fillRect(16,466,142,60);ctx.strokeStyle='#ae8851';ctx.strokeRect(16.5,466.5,141,59);image('meat',24,474,48,38);glyphs(game.heals+'/3',86,483);text('F · EAT',86,510,10,'#e9d3a1');if(game.healTime){ctx.fillStyle='#eeb76b';ctx.fillRect(22,519,128*(1-game.healTime/.65),3);}
+ ctx.fillStyle='#0b1629ee';ctx.fillRect(16,466,142,60);ctx.strokeStyle='#ae8851';ctx.strokeRect(16.5,466.5,141,59);
+ image('meat',24,474,48,38);glyphs(game.heals+'/3',86,481);glyphs('F EAT',86,497,'left',8);
+ if(game.healTime){ctx.fillStyle='#eeb76b';ctx.fillRect(22,519,128*(1-game.healTime/.65),3);}
  if(game.boss&&game.bossStarted){const [fx,fy,fw,fh]=BOSS.bar;
   image('hud-boss-frame',BOSS.x,BOSS.y,BOSS.w,BOSS.h);if(game.boss.kind==='kuro'){ctx.fillStyle='#0c1629';ctx.fillRect(BOSS.x+12,BOSS.y+4,350,18);text('CAPTAIN KURO',BOSS.x+20,BOSS.y+17,12,'#e6c587');}
   bar('hud-boss-trail',BOSS.x+fx,BOSS.y+fy,fw,bossTrail,fh);
@@ -358,7 +393,16 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
   glyphs(game.boss.phase,BOSS.x+BOSS.phase[0],BOSS.y+BOSS.phase[1]);
  }
  if(fullscreen()&&started&&game.messageTime>0)plate(game.message,480,466);
- if(game.kuroDefeated){const p=game.player;plate(p.gearIntro?'GEAR 2 · ACTIVATING':p.gear?'GEAR 2 · '+p.gear.toFixed(1)+'s':'X · GEAR 2',92,162,p.gear?'#ffb8a0':'#d1b993');}
+ if(game.kuroDefeated){const p=game.player,gx=80,gy=120;
+  // Dim the badge when there is not a full bar to spend, the way Gatling dims before its unlock.
+  const usable=p.gear>0||p.gearIntro>0||game.meter>=100;
+  ctx.save();ctx.globalAlpha=usable?1:.55;image('hud-gear-badge',gx,gy,150,22);ctx.restore();
+  const span=p.gearDuration||1,left=p.gear>0?p.gear/span:0;
+  if(left>0)bar('hud-gear-fill',gx+78,gy+7,64,left,8);
+  if(p.gearIntro>0){ctx.save();ctx.globalAlpha=.35+.35*Math.sin(game.time*18);
+   ctx.fillStyle='#ffb089';ctx.fillRect(gx+78,gy+7,64,8);ctx.restore();}
+  if(p.gear>0)glyphs(p.gear.toFixed(1),gx+140,gy+6,'right');
+ }
  const c=game.context();if(c){
   const label=c.kind==='checkpoint'?'Press E to rest':c.kind==='satchel'?'E · Recover':c.kind==='rematch'?'E · Rematch':'E · Travel';
   plate(label,clamp((c.x-camera.x)*ZOOM,90,870),(c.y-camera.y-68)*ZOOM);

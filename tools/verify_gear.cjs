@@ -23,3 +23,20 @@ g=ready();g.player.gear=.05;step(g,.1);assert(g.player.gearFade>0);assert.equal(
 g=ready();g.player.gear=3;g.jetStamp(aim(g));assert.equal(g.events.filter(e=>e.type==='gear-end'&&e.reason==='stamp').length,1);assert(g.player.gearFade>0);
 // Crossing half health interrupts phase one and immediately selects a separate bag.
 g=ready();g.spawnBoss();g.player.x=300;g.player.invuln=999;Object.assign(g.boss,{hp:59,state:'wind',attack:'lunge',timer:.2,moves:['slash']});g.step(dt);assert.equal(g.boss.state,'split');assert.equal(g.boss.phase,2);assert.equal(g.boss.moves.length,0);const phaseMoves=new Set();let pounces=0,lastY=430,volleyShots=0,huntWinds=0,lastState='';for(let i=0;i<6000;i++){g.step(dt);const b=g.boss;if(b.state!=='split')phaseMoves.add(b.attack);if(b.attack==='pounce'&&b.y<430&&lastY===430)pounces++;lastY=b.y;if(b.attack==='hunt'&&b.state==='wind'&&lastState!=='wind')huntWinds++;lastState=b.state;volleyShots+=g.events.filter(e=>e.type==='claw-sweep').length;g.events=[];}for(const move of ['flurry','hunt','pounce','crosscut'])assert(phaseMoves.has(move),move);assert(!phaseMoves.has('slash'));assert(pounces>=2&&huntWinds>=3&&volleyShots>=2);console.log('PASS Gear exit cues/fade, Bazooka-equivalent Jet damage, immediate Kuro phase transition and phase-two combo patterns');
+
+// The first-clear pop-up keys off the victory event, so that detail has to survive.
+g=ready();g.kuroDefeated=false;g.loadStage('circus');g.buggyDefeated=false;g.spawnBoss();g.bossStarted=true;g.events=[];
+g.damageEnemy(g.boss,999,1);
+let v=g.events.filter(e=>e.type==='victory');
+assert.equal(v.length,1,'one victory event');
+assert.equal(v[0].first,true,'first clear is flagged');
+assert.equal(v[0].boss,'buggy','the event names which captain fell');
+g.player.x=880;g.player.y=430;g.interact();g.bossStarted=true;g.events=[];
+g.damageEnemy(g.boss,999,1);
+v=g.events.filter(e=>e.type==='victory');
+assert.equal(v[0].first,false,'a rematch is not a first clear, so no pop-up');
+g=ready();g.kuroDefeated=false;g.loadStage('mansion');g.spawnBoss();g.bossStarted=true;g.events=[];
+g.damageEnemy(g.boss,999,1);
+v=g.events.filter(e=>e.type==='victory');
+assert.equal(v[0].first,true);assert.equal(v[0].boss,'kuro','Kuro is named too');
+console.log('PASS victory event carries first-clear and captain, so the unlock pop-up fires once each');

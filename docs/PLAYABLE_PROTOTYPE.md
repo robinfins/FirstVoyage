@@ -102,9 +102,15 @@ Measured in the running game: Bazooka fire peaks at 0.36 RMS, a connect at 0.23,
 
 `tools/verify_music.cjs` also checks the effects: it reads every `emit()` in `core.js` and asserts each sounding event has a cue, so a newly added event cannot ship silent. Only `save` and `stage` are silent by design.
 
+## First-clear pop-ups
+
+Beating a captain for the first time pauses the game and explains what it just handed you: the key, what it costs, and the rules that are easy to miss — that Gatling commits Luffy for the whole barrage, that Gear 2's activation can be cancelled by a hit. It waits 2.6 seconds so the victory shout lands first, and it fires only on a first clear; rematches skip it. The copy in `UNLOCKS` in `play/game.js` follows the real figures in `core.js`, so it stays true if those are retuned.
+
+The `victory` event carries `first` and `boss`, and `tools/verify_gear.cjs` asserts that detail survives, since the pop-up keys off it.
+
 ## Heads-up display
 
-One console in the upper-left carries the straw-hat crest, Luffy's name, the berry count, current/maximum health, the health track, the three special segments, the dash cooldown and both special-move keys. The health track pulses its rim at one health point. A full special segment shimmers. Gum-Gum Gatling shows a padlock until Buggy is defeated, and an `LVL` badge appears below the console once Luffy is past level one. The health track's segment dividers follow max health, so a new segment reads as a real segment rather than a re-scaled fifth. The boss console at the bottom of the screen uses the same plate, lettering and palette: Buggy's name, the current phase, a red health fill, a pale trail that drains a beat later so a heavy hit stays readable, and a gold tick at the half-health point where he splits into phase two. It appears only once the encounter starts.
+One console in the upper-left carries the straw-hat crest, Luffy's name, the berry count, current/maximum health, the health track, the three special segments, the dash cooldown and both special-move keys. The health track pulses its rim at one health point. A full special segment shimmers. Gum-Gum Gatling shows a padlock until Buggy is defeated. Below the console sit the `LVL` badge and, once Kuro has fallen, the Gear 2 badge: an `X` cap, the name, and a well that drains through the transformation with the seconds left beside it. It dims when there is not a full bar to spend. Both badges share the console's plate and its baked pixel lettering — the Gear indicator and the meat label were the last HUD text drawn in the browser's own font, which is why they looked washed out beside everything else. The health track's segment dividers follow max health, so a new segment reads as a real segment rather than a re-scaled fifth. The boss console at the bottom of the screen uses the same plate, lettering and palette: Buggy's name, the current phase, a red health fill, a pale trail that drains a beat later so a heavy hit stays readable, and a gold tick at the half-health point where he splits into phase two. It appears only once the encounter starts.
 
 ## Challenge update
 
