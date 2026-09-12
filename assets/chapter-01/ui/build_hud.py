@@ -14,7 +14,9 @@ FONT={'A':'.#.|#.#|###|#.#|#.#','B':'##.|#.#|##.|#.#|##.','C':'.##|#..|#..|#..|.
  'D':'##.|#.#|#.#|#.#|##.','E':'###|#..|##.|#..|###','F':'###|#..|##.|#..|#..',
  'G':'.##|#..|#.#|#.#|.##','H':'#.#|#.#|###|#.#|#.#','I':'###|.#.|.#.|.#.|###',
  'J':'..#|..#|..#|#.#|.#.','K':'#.#|#.#|##.|#.#|#.#','L':'#..|#..|#..|#..|###',
- 'M':'#.#|###|###|#.#|#.#','N':'#.#|##.|###|.##|#.#','O':'.#.|#.#|#.#|#.#|.#.',
+ 'M':'#.#|###|###|#.#|#.#',
+ # N keeps an unbroken middle column: thinning row 2 leaves a hole in the diagonal.
+ 'N':'#.#|##.|###|.##|#.#','O':'.#.|#.#|#.#|#.#|.#.',
  'P':'##.|#.#|##.|#..|#..','Q':'.#.|#.#|#.#|#.#|.##','R':'##.|#.#|##.|#.#|#.#',
  'S':'.##|#..|.#.|..#|##.','T':'###|.#.|.#.|.#.|.#.','U':'#.#|#.#|#.#|#.#|###',
  'V':'#.#|#.#|#.#|#.#|.#.','W':'#.#|#.#|###|###|#.#','X':'#.#|#.#|.#.|#.#|#.#',
@@ -143,20 +145,23 @@ boss_grid=(rect(262,0,1,14,'#08101c')+rect(263,0,2,14,'#f0c273')+rect(265,0,1,14
 
 coin=(disc(7,7,7,EDGE)+disc(7,7,6,'#f0c273')+disc(7,7,5,'#e0ae59')
  +disc(7,7,3,'#c98c3d')+label('B',6,5,1,'#4f3412'))
-level_badge=(plate(52,22,'#2b4a3c',RIM_HI,.9)+label('LVL',9,6,2,'#ffe6bd'))
+LEVEL_W=56
+level_badge=(plate(LEVEL_W,22,'#2b4a3c',RIM_HI,.9)+label('LVL',9,6,2,'#ffe6bd'))
 
 # ---------------------------------------------------------------- world signposts
 WOOD='#8d5c33'; WOOD_HI='#b8824a'; WOOD_LO='#5d3a1e'; WOOD_EDGE='#33200f'
 IRON='#474350'; IRON_HI='#6f6a7c'; NAIL='#cdc6b2'
-SIGN_W,SIGN_H,BOARD_H=64,76,30
+# Widest label is CIRCUS: 6 glyphs at advance 10 is 56px, and the straps eat 20px of the board.
+SIGN_W,SIGN_H,BOARD_H=84,76,30
 def signpost():
- out=[rect(26,BOARD_H-2,12,SIGN_H-BOARD_H-4,WOOD_EDGE)]          # post silhouette
- out+=[rect(27,BOARD_H-2,10,SIGN_H-BOARD_H-5,WOOD),rect(27,BOARD_H-2,2,SIGN_H-BOARD_H-5,WOOD_HI),
-       rect(35,BOARD_H-2,2,SIGN_H-BOARD_H-5,WOOD_LO)]
- for y in range(BOARD_H+4,SIGN_H-8,7): out.append(rect(29,y,6,1,WOOD_LO))   # grain
+ c=SIGN_W//2                                                     # post and mound follow the centre
+ out=[rect(c-6,BOARD_H-2,12,SIGN_H-BOARD_H-4,WOOD_EDGE)]         # post silhouette
+ out+=[rect(c-5,BOARD_H-2,10,SIGN_H-BOARD_H-5,WOOD),rect(c-5,BOARD_H-2,2,SIGN_H-BOARD_H-5,WOOD_HI),
+       rect(c+3,BOARD_H-2,2,SIGN_H-BOARD_H-5,WOOD_LO)]
+ for y in range(BOARD_H+4,SIGN_H-8,7): out.append(rect(c-3,y,6,1,WOOD_LO))  # grain
  # earth mound at the foot, so the post is planted rather than floating
- out+=[rect(18,SIGN_H-9,28,5,'#4a3b28'),rect(20,SIGN_H-10,24,2,'#5e4a31'),
-       rect(22,SIGN_H-11,8,1,'#6d5838'),rect(34,SIGN_H-11,7,1,'#6d5838')]
+ out+=[rect(c-14,SIGN_H-9,28,5,'#4a3b28'),rect(c-12,SIGN_H-10,24,2,'#5e4a31'),
+       rect(c-10,SIGN_H-11,8,1,'#6d5838'),rect(c+2,SIGN_H-11,7,1,'#6d5838')]
  out+=[rect(0,0,SIGN_W,BOARD_H,WOOD_EDGE)]                        # board silhouette
  out+=[rect(1,1,SIGN_W-2,BOARD_H-2,WOOD),rect(1,1,SIGN_W-2,2,WOOD_HI),rect(1,BOARD_H-4,SIGN_W-2,3,WOOD_LO)]
  for y in (8,15,22): out.append(rect(3,y,SIGN_W-6,1,WOOD_LO))     # plank seams
@@ -186,7 +191,7 @@ assets=[('player-frame',204,36,player),('player-fill',152,12,pfill),
  *[('hud-health-grid-%d'%n,225,14,health_grid(n)) for n in HEALTH_SEGMENTS],('hud-meter-fill',73,10,meter_fill),
  ('hud-meter-fill-hot',73,10,meter_hot),('hud-dash-fill',187,4,dash_fill),
  ('hud-glyphs',len(GLYPH_ORDER)*8-2,10,glyphs),('hud-lock',11,11,lock),
- ('hud-coin',14,14,coin),('hud-level-badge',52,22,level_badge),
+ ('hud-coin',14,14,coin),('hud-level-badge',LEVEL_W,22,level_badge),
  ('hud-boss-frame',BW,BH,boss_plate),('hud-boss-fill',528,14,boss_bar_fill),
  ('hud-boss-trail',528,14,boss_trail),('hud-boss-grid',528,14,boss_grid)]
 SIGN_ASSETS=[('sign-post',SIGN_W,SIGN_H,signpost()),('sign-arrow',ARROW_W,ARROW_H,sign_arrow)]
@@ -207,8 +212,8 @@ config={'viewport':[640,360],
   'keys':[{'move':'bazooka','cap':[64,79,14,14],'label':[82,81],'cost':2},{'move':'gatling','cap':[166,79,14,14],'label':[184,81],'cost':3,'lock':'hud-lock.svg'}],
   'glyphs':{'file':'hud-glyphs.svg','order':GLYPH_ORDER,'cell':[6,10],'advance':8},
   'berries':{'coin':'hud-coin.svg','coin_anchor':[110,8],'value_anchor':[128,10]},
-  'level':{'file':'hud-level-badge.svg','size':[52,22],'screen_anchor':[16,120],'value_anchor':[37,6]}},
- 'signpost':{'used_by':'play/game.js drawExits','board':'../props/sign-post.svg','size':[SIGN_W,SIGN_H],'label_anchor':[32,7],'arrow':'../props/sign-arrow.svg','arrow_size':[ARROW_W,ARROW_H],'arrow_anchor':[32,17],'foot_offset':SIGN_H-4},
+  'level':{'file':'hud-level-badge.svg','size':[LEVEL_W,22],'screen_anchor':[16,120],'value_anchor':[41,6]}},
+ 'signpost':{'used_by':'play/game.js drawExits','board':'../props/sign-post.svg','size':[SIGN_W,SIGN_H],'label_anchor':[SIGN_W//2,7],'label_advance':10,'arrow':'../props/sign-arrow.svg','arrow_size':[ARROW_W,ARROW_H],'arrow_anchor':[SIGN_W//2,17],'foot_offset':SIGN_H-4},
  'boss_console':{'used_by':'play/game.js, drawn 1:1 in 960x540 screen space','frame':'hud-boss-frame.svg','frame_size':[BW,BH],'screen_anchor':[200,484],
   'health':{'fill':'hud-boss-fill.svg','trail':'hud-boss-trail.svg','grid':'hud-boss-grid.svg','rect':[16,24,528,14],'trail_delay_seconds':0.35,'phase_two_marker':0.5},
   'phase_value_anchor':[540,8]},
