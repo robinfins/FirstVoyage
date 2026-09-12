@@ -170,8 +170,8 @@
         22
       ],
       "screen_anchor": [
-        16,
-        146
+        80,
+        120
       ],
       "fill_rect": [
         78,
@@ -179,13 +179,11 @@
         64,
         8
       ],
-      "screen_anchor_no_level_badge": [
-        16,
-        120
-      ]
+      "shares_row_with": "level",
+      "gap_from_level_badge": 8
     },
     "left_gutter": 16,
-    "left_gutter_note": "Console, level badge, Gear 2 badge and meat panel all anchor here, so the overlay keeps one straight edge down the side of the screen.",
+    "left_gutter_note": "Console, level badge and meat panel all anchor here, so the overlay keeps one straight edge down the side of the screen. The Gear 2 badge is the exception: it shares the level badge's row, off its right edge.",
     "meat": {
       "icon": "meat.svg",
       "icon_size": [
