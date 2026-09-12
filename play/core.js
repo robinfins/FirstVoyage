@@ -59,6 +59,11 @@ const TYPES={cutlass:{hp:5,speed:155,range:132,wind:.36,recover:.42,damage:1,jum
 // One tier per captain victory. Damage scales every attack, ordinary and special alike.
 const LEVELS=[{damage:1,maxHp:5},{damage:1.5,maxHp:6},{damage:2,maxHp:7}];
 const METER={max:300,bar:100,perHit:20};
+// Voyage order, and the grouping the fast-travel menu presents. Chapter two names its own island
+// alongside its stages, so adding a chapter does not mean editing a list over here as well.
+const ISLANDS=[{id:'sunny',name:'Thousand Sunny',stages:['sunny']},
+ {id:'orange-town',name:'Orange Town',stages:['dock','streets','circus']},
+ ...ChapterTwo.islands];
 const SPECIALS={
  jetstamp:{name:'Gum-Gum Jet Stamp',cost:0,duration:.72,startup:.25,pulses:1,interval:0,reach:200,radius:35,damage:12},
  bazooka:{name:'Gum-Gum Bazooka',cost:200,duration:1.12,startup:.62,pulses:1,interval:0,reach:210,radius:35,damage:12},
@@ -144,6 +149,21 @@ class Game {
   else if(c.kind==='satchel'){this.berries+=this.satchel.amount;this.satchel=null;this.requestSave();this.say('Lost berries recovered.');}
  }
  closeRest(){this.resting=false;this.player.invuln=.8;}
+ // Fast travel is presented island by island so the list does not grow into one long column as
+ // the voyage opens up. An island appears only once it has an activated snail: somewhere you have
+ // walked past but never saved at is not somewhere you can travel to. Order follows the voyage
+ // rather than the order snails happened to be activated in.
+ travelMenu(){
+  return ISLANDS.map(island=>({id:island.id,name:island.name,
+   snails:island.stages.flatMap(stage=>(STAGES[stage]?.checkpoints||[])
+    .filter(cp=>this.visited.some(v=>v.stage===stage&&v.id===cp.id))
+    .map(cp=>({stage,id:cp.id,name:cp.name,stageName:STAGES[stage].name,
+     // A stage name carries its island ("Orange Town · Broken quays"). Inside that island's own
+     // list the prefix is noise, so the part after the separator is offered on its own.
+     area:STAGES[stage].name.split(' · ').slice(1).join(' · '),
+     current:this.checkpoint.stage===stage&&this.checkpoint.id===cp.id})))}))
+   .filter(island=>island.snails.length>0);
+ }
  travel(stage,id){if(!this.resting||!this.visited.some(v=>v.stage===stage&&v.id===id)||!STAGES[stage]?.checkpoints.some(c=>c.id===id))return false;
   this.checkpoint={stage,id};this.loadStage(stage);this.placeAtCheckpoint();this.say('Resting at '+STAGES[stage].checkpoints.find(c=>c.id===id).name,3);this.hp=this.maxHp;this.heals=3;this.requestSave();return true;
  }
@@ -373,6 +393,6 @@ class Game {
  }
 
 }
-const api={Game,STAGES,SHIP,TYPES,LEVELS,METER,SPECIALS,validSave,lineDistance,segmentBox,clamp};
+const api={Game,STAGES,ISLANDS,SHIP,TYPES,LEVELS,METER,SPECIALS,validSave,lineDistance,segmentBox,clamp};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.PirateGame=api;
 })(typeof window!=='undefined'?window:globalThis);

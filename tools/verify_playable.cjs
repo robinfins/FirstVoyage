@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-const {Game,SHIP,TYPES,LEVELS,METER,SPECIALS,validSave,segmentBox}=require('../play/core.js');
+const {Game,STAGES,ISLANDS,SHIP,TYPES,LEVELS,METER,SPECIALS,validSave,segmentBox}=require('../play/core.js');
 const DT=1/120;
 function advance(g,seconds,input={}){for(let i=0;i<Math.round(seconds/DT);i++)g.step(DT,typeof input==='function'?input(i):input);}
 function fresh(stage='sunny'){const g=new Game();g.loadStage(stage);g.player.invuln=0;return g;}
@@ -169,3 +169,45 @@ test('Invalid save rejection',()=>{assert.equal(validSave({version:99}),null);as
 console.log('All challenge-update checks passed.');
 
 test('Gatling unlock persists and Buggy rematches do not repeat rewards',()=>{const g=fresh('circus');g.meter=300;assert(!g.startSpecial('gatling',{x:900,y:400}));assert.equal(g.meter,300);g.damageEnemy(g.boss,999,1);const saved=g.save();assert(new Game(saved).buggyDefeated);g.player.x=880;g.player.y=430;assert.equal(g.context().kind,'rematch');g.interact();assert.equal(g.boss.hp,84);assert.equal(g.boss.state,'idle');assert(g.buggyDefeated);g.damageEnemy(g.boss,999,1);assert.equal(g.berries,50);assert.equal(g.boss.state,'defeated');});
+
+test('Every stage with a snail belongs to an island',()=>{
+ // A stage missing from ISLANDS would not error anywhere -- its snails would just stop appearing
+ // in the travel menu, which is exactly the kind of thing nobody notices until a save is stranded.
+ const grouped=new Set(ISLANDS.flatMap(i=>i.stages));
+ for(const [id,stage] of Object.entries(STAGES))
+  if(stage.checkpoints.length) assert(grouped.has(id),id+' has snails but no island');
+ const seen=new Set();
+ for(const s of ISLANDS.flatMap(i=>i.stages)){assert(!seen.has(s),s+' is listed on two islands');seen.add(s);}
+});
+test('Fast travel groups snails by island and hides islands with none activated',()=>{
+ const g=fresh();
+ // Nothing but the Sunny until a snail is actually rested at: reaching an island is not enough.
+ assert.deepEqual(g.travelMenu().map(i=>i.id),['sunny']);
+ assert.deepEqual(g.travelMenu()[0].snails.map(s=>s.id),['sunny']);
+ assert.equal(g.travelMenu()[0].snails[0].current,true);
+ g.visited.push({stage:'streets',id:'streets-b'});
+ assert.deepEqual(g.travelMenu().map(i=>i.id),['sunny','orange-town']);
+ g.visited.push({stage:'dock',id:'dock-a'},{stage:'streets',id:'streets-mid'},{stage:'syrup',id:'syrup-c'});
+ const menu=g.travelMenu();
+ assert.deepEqual(menu.map(i=>i.name),['Thousand Sunny','Orange Town','Syrup Village']);
+ // Voyage order, not the order the snails happened to be activated in.
+ assert.deepEqual(menu[1].snails.map(s=>s.id),['dock-a','streets-mid','streets-b']);
+ assert.deepEqual(menu[2].snails.map(s=>s.id),['syrup-c']);
+ assert(menu.every(i=>i.snails.length>0),'an island with no activated snail should not be listed');
+ assert(menu.every(i=>i.snails.every(s=>s.name&&s.stageName)),'every entry needs a label');
+ // The area is the stage name with its island prefix removed, so a snail list does not repeat
+ // the island on every row. The Sunny is its own island, so it has no area to show.
+ assert.deepEqual(menu[1].snails.map(s=>s.area),['Broken quays','Rooftop siege','Rooftop siege']);
+ assert.deepEqual(menu[2].snails.map(s=>s.area),['Black Cat ambush']);
+ assert.equal(menu[0].snails[0].area,'');
+ assert.equal(menu.flatMap(i=>i.snails).filter(s=>s.current).length,1,'exactly one snail is the current one');
+});
+test('Every listed snail is a destination travel() will accept',()=>{
+ const g=fresh();g.visited.push({stage:'dock',id:'dock-a'},{stage:'syrup',id:'syrup-b'});
+ g.resting=true;
+ for(const s of g.travelMenu().flatMap(i=>i.snails)){
+  if(s.current)continue;
+  assert(g.travel(s.stage,s.id),s.id+' is listed but not travellable');
+  g.resting=true;                                   // travel() leaves the rest open in the UI
+ }
+});

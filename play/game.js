@@ -11,7 +11,7 @@ let music=true,scoreTrack=null;
 try{saved=PirateGame.validSave(JSON.parse(localStorage.getItem(SAVE_KEY)));}catch{saveAvailable=false;}
 game=new Game(saved);game.events=[];
 // Bump when regenerated art must defeat a cached copy; script ?v= tags do not cover asset files.
-const ASSET_V='align2';
+const ASSET_V='travel1';
 function load(key,path){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>resolve(key);im.src='../assets/chapter-01/'+path+'?v='+ASSET_V;});}
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
@@ -28,9 +28,43 @@ Promise.all(assets.map(([key,path])=>load(key,path))).then(results=>{
 });
 function begin(fresh){game=new Game(fresh?null:saved);game.events=[];started=true;paused=false;keys.clear();attackHeld=false;pressed={};$('menu').hidden=true;$('pause-button').disabled=false;camera=targetCamera();canvas.focus();scoreTrack=null;if(music||sound)audio();if(music)scoreFor(true);if(fresh){try{localStorage.setItem(SAVE_KEY,JSON.stringify(game.save()));}catch{saveAvailable=false;}}}
 $('start').onclick=()=>begin(true);$('resume').onclick=()=>begin(false);
-function pause(value){if(!started)return;if(game.resting){if(!value)leaveRest();return;}paused=value;keys.clear();attackHeld=false;pressed={};$('pause-menu').hidden=!paused;$('pause-button').textContent=paused?'Resume · Esc':'Pause · Esc';if(!paused)canvas.focus();if(paused&&locked)document.exitPointerLock();else requestLock();Music.duck(paused);syncFullscreen();}
-function showRest(){paused=true;keys.clear();attackHeld=false;pressed={};accumulator=0;$('pause-menu').hidden=true;$('rest-menu').hidden=false;$('pause-button').textContent='Resume · Esc';if(locked)document.exitPointerLock();syncFullscreen();
- const list=$('travel-list');list.replaceChildren();for(const v of game.visited){const cp=STAGES[v.stage].checkpoints.find(c=>c.id===v.id);if(!cp)continue;const btn=document.createElement('button');btn.textContent=cp.name;btn.disabled=v.stage===game.checkpoint.stage&&v.id===game.checkpoint.id;btn.onclick=()=>{if(game.travel(v.stage,v.id)){processEvents();camera=targetCamera();showRest();}};list.append(btn);} $('leave-rest').focus();}
+function pause(value){if(!started)return;
+ // While resting, Escape walks back out of the travel views one at a time before leaving the rest.
+ if(game.resting){if(!value){if(restView==='root')leaveRest();else showRest(restView==='snails'?'islands':'root');}return;}paused=value;keys.clear();attackHeld=false;pressed={};$('pause-menu').hidden=!paused;$('pause-button').textContent=paused?'Resume · Esc':'Pause · Esc';if(!paused)canvas.focus();if(paused&&locked)document.exitPointerLock();else requestLock();Music.duck(paused);syncFullscreen();}
+// The rest card is three views: the root, the island list, and one island's snails. Fast travel
+// used to be a single flat row of every activated snail, which stopped being readable once the
+// second island opened up and is only going to get worse with a third.
+let restView='root',restIsland=null;
+function showRest(view='root',islandId=null){restView=view;restIsland=islandId;
+ paused=true;keys.clear();attackHeld=false;pressed={};accumulator=0;$('pause-menu').hidden=true;$('rest-menu').hidden=false;$('pause-button').textContent='Resume · Esc';if(locked)document.exitPointerLock();syncFullscreen();
+ renderRest();}
+function travelEntry(label,note,current,onclick){
+ const b=document.createElement('button');b.disabled=current;b.onclick=onclick;
+ const n=document.createElement('span');n.className='travel-name';n.textContent=label;
+ const m=document.createElement('span');m.className='travel-note';m.textContent=note;
+ b.append(n,m);return b;}
+function renderRest(){const list=$('travel-list'),menu=game.travelMenu();
+ // Travelling can change which island you are on, so never trust a remembered id.
+ if(restView==='snails'&&!menu.some(i=>i.id===restIsland))restView='islands';
+ const island=menu.find(i=>i.id===restIsland);
+ list.replaceChildren();
+ if(restView==='root'){
+  $('rest-eyebrow').textContent='SIGNAL STATION';$('rest-title').textContent='Take a rest.';
+  $('rest-sub').textContent='Health restored · Meat replenished · The game is paused.';
+ }else if(restView==='islands'){
+  $('rest-eyebrow').textContent='FAST TRAVEL';$('rest-title').textContent='Where to?';
+  $('rest-sub').textContent=menu.length>1?'Choose a destination.':'Only the Sunny has an activated snail so far.';
+  for(const i of menu)list.append(travelEntry(i.name,i.snails.length+(i.snails.length===1?' snail':' snails'),false,()=>showRest('snails',i.id)));
+ }else{
+  $('rest-eyebrow').textContent='FAST TRAVEL';$('rest-title').textContent=island.name;
+  $('rest-sub').textContent='Choose an activated snail.';
+  for(const sn of island.snails)list.append(travelEntry(sn.name,sn.current?'You are here':sn.area,sn.current,
+   ()=>{if(game.travel(sn.stage,sn.id)){processEvents();camera=targetCamera();showRest();}}));
+ }
+ list.hidden=restView==='root';$('rest-back').hidden=restView==='root';$('open-travel').hidden=restView!=='root';
+ (restView==='root'?$('leave-rest'):$('rest-back')).focus();}
+$('open-travel').onclick=()=>showRest('islands');
+$('rest-back').onclick=()=>showRest(restView==='snails'?'islands':'root');
 // First clear of each captain explains what it just handed you. Copy follows the real numbers in
 // core.js, so it stays true if those are retuned.
 const UNLOCKS={

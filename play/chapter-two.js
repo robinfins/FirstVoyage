@@ -44,5 +44,8 @@ function updateKuro(g,dt){const b=g.boss,p=g.player;if(!b||b.hp<=0)return;
   }
  }else if(b.state==='recover'&&b.timer<=0){b.state='idle';b.timer=b.phase===2?.1:.24;b.anim=0;}
 }
-const api={stages,updateKuro};if(typeof module!=='undefined')module.exports=api;else root.ChapterTwo=api;
+// Fast travel groups snails by island, so the chapter names its own landmass rather than leaving
+// core.js to know which of its stages belong together.
+const islands=[{id:'syrup-village',name:'Syrup Village',stages:['syrup','mansion']}];
+const api={stages,islands,updateKuro};if(typeof module!=='undefined')module.exports=api;else root.ChapterTwo=api;
 })(typeof window!=='undefined'?window:globalThis);
