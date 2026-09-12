@@ -16,7 +16,7 @@ function updateKuro(g,dt){const b=g.boss,p=g.player;if(!b||b.hp<=0)return;
  const clamp=x=>Math.max(65,Math.min(1095,x));
  const face=()=>{b.facing=p.x<b.x?-1:1;b.aim=clamp(p.x+p.vx*.18);};
  const wind=(seconds)=>{face();b.state='wind';b.timer=seconds;b.windTotal=seconds;b.anim=0;b.released=false;};
- const volley=(speed=360)=>{const angle=Math.atan2(p.y-26-(b.y-42),p.x-b.x);for(const spread of [-.16,0,.16])g.projectiles.push({kind:'clawwave',x:b.x+b.facing*48,y:b.y-42,vx:Math.cos(angle+spread)*speed,vy:Math.sin(angle+spread)*speed,t:2.6,damage:1});g.emit('claw-sweep');};
+ const volley=(speed=360)=>{const angle=Math.atan2(p.y-26-(b.y-42),p.x-b.x);for(const spread of [-.16,0,.16])g.projectiles.push({kind:'clawwave',x:b.x+b.facing*48,y:b.y-42,vx:Math.cos(angle+spread)*speed,vy:Math.sin(angle+spread)*speed,t:2.6,damage:135});g.emit('claw-sweep');};
  b.hit=Math.max(0,b.hit-dt);
  if(!g.bossStarted){if(p.x<235)return;g.bossStarted=true;g.say('Captain Kuro',2);}
  if(b.phase===1&&b.hp<=b.maxHp*.5){b.phase=2;b.state='split';b.timer=1.05;b.anim=0;b.y=430;b.vy=0;b.moves=[];g.projectiles=[];g.say('OUT OF THE BAG · Kuro stops holding back',2.4);g.emit('kuro-phase');return;}
@@ -36,8 +36,8 @@ function updateKuro(g,dt){const b=g.boss,p=g.player;if(!b||b.hp<=0)return;
   if(['clawwave','crosscut'].includes(b.attack)&&!b.released&&b.anim>=.14){b.released=true;volley(b.phase===2?460:360);}
   if(['lunge','feint','flurry','hunt'].includes(b.attack))b.x=clamp(b.x+b.vx*dt);
   if(b.attack==='flurry'&&b.timer<1.05-(b.hits+1)*.24){b.hits++;face();b.vx=b.facing*800;}
-  if(['dive','pounce'].includes(b.attack)){b.vy+=1000*dt;b.y+=b.vy*dt;b.x=clamp(b.x+b.vx*dt);if(b.y>=430&&b.vy>0){b.y=430;b.vy=0;b.timer=0;g.projectiles.push({kind:'blast',x:b.x,y:415,t:.22,radius:b.attack==='pounce'?76:65,damage:1});g.emit('boom');}}
-  if(!['clawwave','crosscut'].includes(b.attack)&&Math.abs(p.x-b.x)<(b.attack==='slash'?108:48)&&Math.abs(p.y-b.y)<60)g.hurt(1,b.x);
+  if(['dive','pounce'].includes(b.attack)){b.vy+=1000*dt;b.y+=b.vy*dt;b.x=clamp(b.x+b.vx*dt);if(b.y>=430&&b.vy>0){b.y=430;b.vy=0;b.timer=0;g.projectiles.push({kind:'blast',x:b.x,y:415,t:.22,radius:b.attack==='pounce'?76:65,damage:185});g.emit('boom');}}
+  if(!['clawwave','crosscut'].includes(b.attack)&&Math.abs(p.x-b.x)<(b.attack==='slash'?108:48)&&Math.abs(p.y-b.y)<60)g.hurt(185,b.x,{kind:'melee',attacker:b});if(b.stun>0)return;
   if(b.timer<=0){const count=b.attack==='hunt'?3:['pounce','crosscut'].includes(b.attack)?2:1;b.combo++;
    if(b.combo<count){wind(b.attack==='hunt'?.3:b.attack==='pounce'?.42:.24);}
    else{b.state='recover';b.anim=0;b.timer=b.phase===2?.75:['flurry','dive'].includes(b.attack)?.85:.48;}

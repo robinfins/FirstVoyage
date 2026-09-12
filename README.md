@@ -6,6 +6,8 @@ A side-scrolling action platformer starring pre-timeskip Luffy: explore hostile 
 
 ## Start here
 
+- **[Crew and health update](docs/CREW_COMBAT.md)** — numeric HP, 300-HP meat, and playable Zoro with checkpoint switching, guard/parry, Oni Giri and Tiger Trap.
+
 - **[Play First Voyage](play/index.html)** — the playable Sunny → Orange Town → Buggy prototype, now with longer parkour routes, pursuing pirates, impact bombs and a closer camera. Open through the local server at `http://127.0.0.1:8766/play/`.
 - **[Hosting notes](docs/HOSTING.md)** — putting the build on the web, what a visitor downloads, and what the four-digit gate does and does not do.
 - **[Playable build notes](docs/PLAYABLE_PROTOTYPE.md)** — controls, route, saving, implemented systems and current limits.

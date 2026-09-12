@@ -1,21 +1,23 @@
 'use strict';
-const {Game,STAGES,SHIP,TYPES,METER,SPECIALS,clamp}=PirateGame;
+const {Game,STAGES,SHIP,TYPES,METER,SPECIALS,HEALTH,CHARACTERS,clamp}=PirateGame;
 const ZOOM=1.35, VIEW_W=960/ZOOM, VIEW_H=540/ZOOM;
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),$=id=>document.getElementById(id);
 const shell=document.querySelector('.game-shell');
 const SAVE_KEY='straw-hat-first-voyage-v1',images={},keys=new Set();
-let attackHeld=false;
+let attackHeld=false,blockHeld=false;
 let game,started=false,paused=false,loaded=false,last=0,accumulator=0,saved=null,saveAvailable=true;
 let camera={x:0,y:170},pointer={x:650,y:290},pressed={},shake=0,sound=true,audioContext=null;
 let music=true,scoreTrack=null;
 try{saved=PirateGame.validSave(JSON.parse(localStorage.getItem(SAVE_KEY)));}catch{saveAvailable=false;}
 game=new Game(saved);game.events=[];
 // Bump when regenerated art must defeat a cached copy; script ?v= tags do not cover asset files.
-const ASSET_V='travel1';
-function load(key,path){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>resolve(key);im.src='../assets/chapter-01/'+path+'?v='+ASSET_V;});}
+const ASSET_V='crew-health1';
+function load(key,path,attempt=0){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>{if(attempt<2)setTimeout(()=>resolve(load(key,path,attempt+1)),250*(attempt+1));else resolve(key);};im.src='../assets/chapter-01/'+path+'?v='+ASSET_V;});}
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
 for(const [key,path] of [['kaya-mansion','kaya-mansion-arena-v2.png'],['syrup-sky','syrup-dusk-sky.png'],['syrup-village','cleaned/syrup-village-midground.png'],['syrup-props','cleaned/syrup-woodland-foreground.png'],['cats','cleaned/black-cat-pirate-poses.png'],['kuro','cleaned/kuro-attack-poses.png']])assets.push([key,'../chapter-02/'+path]);
+assets.push(['zoro','../characters/zoro/zoro-atlas.png']);
+assets.push(['zoro-oni','../characters/zoro/oni-giri.png']);
 assets.push(['meat','ui/meat.svg'],['jet-stamp','motion/luffy-jet-stamp.png']);
 assets.push(['luffy-motion','motion/luffy-motion.png'],['luffy-stride','motion/luffy-stride.png']);
 assets.push(['terrain','terrain/pirate-terrain-atlas.png'],['sunny-rails','layers/sunny-rails-foreground.png']);
@@ -23,34 +25,40 @@ for(const name of ['hud-console','hud-health-fill','hud-health-grid-5','hud-heal
 assets.push(['sign-post','props/sign-post.svg'],['sign-arrow','props/sign-arrow.svg'],['circus-base','layers/circus-base.svg']);
 Promise.all(assets.map(([key,path])=>load(key,path))).then(results=>{
  const failures=results.filter(Boolean);if(failures.length){$('loading').textContent='Could not load '+failures.join(', ')+'. Reload to retry.';return;}
- loaded=true;$('loading').textContent='Crew ready. Click to begin.';$('start').disabled=false;
+ images.zoro=ZoroArt.prepare(images.zoro,images['zoro-oni']);loaded=true;$('loading').textContent='Crew ready. Click to begin.';$('start').disabled=false;
  if(saved){$('resume').hidden=false;$('start').textContent='New voyage';}
 });
-function begin(fresh){game=new Game(fresh?null:saved);game.events=[];started=true;paused=false;keys.clear();attackHeld=false;pressed={};$('menu').hidden=true;$('pause-button').disabled=false;camera=targetCamera();canvas.focus();scoreTrack=null;if(music||sound)audio();if(music)scoreFor(true);if(fresh){try{localStorage.setItem(SAVE_KEY,JSON.stringify(game.save()));}catch{saveAvailable=false;}}}
+function begin(fresh){game=new Game(fresh?null:saved);game.events=[];started=true;paused=false;keys.clear();attackHeld=false;blockHeld=false;pressed={};$('menu').hidden=true;$('pause-button').disabled=false;camera=targetCamera();canvas.focus();scoreTrack=null;if(music||sound)audio();if(music)scoreFor(true);if(fresh){try{localStorage.setItem(SAVE_KEY,JSON.stringify(game.save()));}catch{saveAvailable=false;}}}
 $('start').onclick=()=>begin(true);$('resume').onclick=()=>begin(false);
 function pause(value){if(!started)return;
  // While resting, Escape walks back out of the travel views one at a time before leaving the rest.
- if(game.resting){if(!value){if(restView==='root')leaveRest();else showRest(restView==='snails'?'islands':'root');}return;}paused=value;keys.clear();attackHeld=false;pressed={};$('pause-menu').hidden=!paused;$('pause-button').textContent=paused?'Resume · Esc':'Pause · Esc';if(!paused)canvas.focus();if(paused&&locked)document.exitPointerLock();else requestLock();Music.duck(paused);syncFullscreen();}
+ if(game.resting){if(!value){if(restView==='root')leaveRest();else showRest(restView==='snails'?'islands':'root');}return;}paused=value;keys.clear();attackHeld=false;blockHeld=false;pressed={};$('pause-menu').hidden=!paused;$('pause-button').textContent=paused?'Resume · Esc':'Pause · Esc';if(!paused)canvas.focus();if(paused&&locked)document.exitPointerLock();else requestLock();Music.duck(paused);syncFullscreen();}
 // The rest card is three views: the root, the island list, and one island's snails. Fast travel
 // used to be a single flat row of every activated snail, which stopped being readable once the
 // second island opened up and is only going to get worse with a third.
 let restView='root',restIsland=null;
 function showRest(view='root',islandId=null){restView=view;restIsland=islandId;
- paused=true;keys.clear();attackHeld=false;pressed={};accumulator=0;$('pause-menu').hidden=true;$('rest-menu').hidden=false;$('pause-button').textContent='Resume · Esc';if(locked)document.exitPointerLock();syncFullscreen();
+ paused=true;keys.clear();attackHeld=false;blockHeld=false;pressed={};accumulator=0;$('pause-menu').hidden=true;$('rest-menu').hidden=false;$('pause-button').textContent='Resume · Esc';if(locked)document.exitPointerLock();syncFullscreen();
  renderRest();}
 function travelEntry(label,note,current,onclick){
  const b=document.createElement('button');b.disabled=current;b.onclick=onclick;
  const n=document.createElement('span');n.className='travel-name';n.textContent=label;
  const m=document.createElement('span');m.className='travel-note';m.textContent=note;
  b.append(n,m);return b;}
-function renderRest(){const list=$('travel-list'),menu=game.travelMenu();
+function renderRest(){const list=$('travel-list'),menu=game.travelMenu();list.dataset.view=restView;
  // Travelling can change which island you are on, so never trust a remembered id.
  if(restView==='snails'&&!menu.some(i=>i.id===restIsland))restView='islands';
  const island=menu.find(i=>i.id===restIsland);
  list.replaceChildren();
  if(restView==='root'){
   $('rest-eyebrow').textContent='SIGNAL STATION';$('rest-title').textContent='Take a rest.';
-  $('rest-sub').textContent='Health restored · Meat replenished · The game is paused.';
+  $('rest-sub').textContent=CHARACTERS[game.character].name+' · '+game.hp+'/'+game.maxHp+' HP · Meat replenished';
+ }else if(restView==='crew'){
+  $('rest-eyebrow').textContent='STRAW HAT CREW';$('rest-title').textContent='Who takes the lead?';
+  $('rest-sub').textContent='Shared voyage and health pool. Switching clears ability charge.';
+  for(const id of ['luffy','zoro'])list.append(travelEntry(CHARACTERS[id].name,
+   id==='luffy'?'Long reach · Bazooka · Gatling · Gear 2 after Kuro':'Three swords · Right click to guard / parry · Oni Giri · Tiger Trap',
+   game.character===id,()=>{if(game.switchCharacter(id)){processEvents();showRest();}}));
  }else if(restView==='islands'){
   $('rest-eyebrow').textContent='FAST TRAVEL';$('rest-title').textContent='Where to?';
   $('rest-sub').textContent=menu.length>1?'Choose a destination.':'Only the Sunny has an activated snail so far.';
@@ -61,9 +69,10 @@ function renderRest(){const list=$('travel-list'),menu=game.travelMenu();
   for(const sn of island.snails)list.append(travelEntry(sn.name,sn.current?'You are here':sn.area,sn.current,
    ()=>{if(game.travel(sn.stage,sn.id)){processEvents();camera=targetCamera();showRest();}}));
  }
- list.hidden=restView==='root';$('rest-back').hidden=restView==='root';$('open-travel').hidden=restView!=='root';
+ list.hidden=restView==='root';$('rest-back').hidden=restView==='root';$('open-travel').hidden=restView!=='root';$('open-crew').hidden=restView!=='root';
  (restView==='root'?$('leave-rest'):$('rest-back')).focus();}
 $('open-travel').onclick=()=>showRest('islands');
+$('open-crew').onclick=()=>showRest('crew');
 $('rest-back').onclick=()=>showRest(restView==='snails'?'islands':'root');
 // First clear of each captain explains what it just handed you. Copy follows the real numbers in
 // core.js, so it stays true if those are retuned.
@@ -72,18 +81,20 @@ const UNLOCKS={
   body:['<b>Eighteen punches in 1.8 seconds.</b> More total damage than Bazooka, but Luffy is committed for the whole barrage.',
         'It starts after 0.18s, then lands a hit every 0.085s in a 165-pixel lane straight ahead.',
         'Aim is locked when you start it, and you must be on firm ground.',
-        '<b>Dash cancels it</b> — but the bars are spent either way.'],
-  level:'LEVEL 2 · every attack hits harder · one more health segment'},
+        '<b>Dash cancels it</b> — but the bars are spent either way.',
+        '<b>Zoro also unlocked Tiger Trap.</b> Switch crew at any resting snail.'],
+  level:'LEVEL 2 · every attack hits harder · 120 more maximum HP'},
  kuro:{eyebrow:'SECOND CAPTAIN DOWN',title:'Gear 2',key:'X',cost:'costs one, two or three bars',
-  body:['<b>Three, seven or thirteen seconds</b> of it, depending on how many full bars you spend.',
+  body:['<b>Luffy\'s transformation.</b> Switch to Luffy at a resting snail to use Gear 2.',
+        '<b>Three, seven or thirteen seconds</b> of it, depending on how many full bars you spend.',
         'Punches land <b>twice as fast</b> — hold the left mouse button to keep swinging instead of clicking each one.',
         'Dash cools down in half the time, so you can reposition between openings.',
         '<b>Right click for Gum-Gum Jet Stamp</b>, a Bazooka-strength finisher that ends Gear 2 early.',
         'Activation takes 0.6s and leaves you standing still — <b>taking a hit cancels it</b> and the bars are gone.'],
-  level:'LEVEL 3 · every attack hits harder · one more health segment'}
+  level:'LEVEL 3 · every attack hits harder · 120 more maximum HP'}
 };
-function showUnlock(kind){const u=UNLOCKS[kind];if(!u)return;
- paused=true;keys.clear();attackHeld=false;pressed={};accumulator=0;
+function showUnlock(kind){const u=kind==='buggy'&&game.character==='zoro'?{...UNLOCKS.buggy,title:'Tiger Trap',body:['<b>A heavy three-sword chop.</b> Cross both blades down from behind your back for 18× base damage.','Costs three bars, with a 0.48s windup and 1.1s total commitment.','<b>Luffy also unlocked Gatling.</b> Switch crew at any resting snail.']}:UNLOCKS[kind];if(!u)return;
+ paused=true;keys.clear();attackHeld=false;blockHeld=false;pressed={};accumulator=0;
  $('unlock-eyebrow').textContent=u.eyebrow;$('unlock-title').textContent=u.title;
  $('unlock-key').textContent=u.key;$('unlock-cost').textContent=u.cost;
  $('unlock-level').textContent=u.level;
@@ -94,10 +105,10 @@ function showUnlock(kind){const u=UNLOCKS[kind];if(!u)return;
  Music.duck(true);syncFullscreen();$('unlock-close').focus();
 }
 function closeUnlock(){$('unlock-menu').hidden=true;paused=false;accumulator=0;
- keys.clear();attackHeld=false;pressed={};$('pause-button').textContent='Pause · Esc';
+ keys.clear();attackHeld=false;blockHeld=false;pressed={};$('pause-button').textContent='Pause · Esc';
  Music.duck(false);canvas.focus();syncFullscreen();}
 $('unlock-close').onclick=closeUnlock;
-function leaveRest(){game.closeRest();$('rest-menu').hidden=true;paused=false;accumulator=0;keys.clear();attackHeld=false;pressed={};$('pause-button').textContent='Pause · Esc';canvas.focus();syncFullscreen();}
+function leaveRest(){game.closeRest();$('rest-menu').hidden=true;paused=false;accumulator=0;keys.clear();attackHeld=false;blockHeld=false;pressed={};$('pause-button').textContent='Pause · Esc';canvas.focus();syncFullscreen();}
 $('leave-rest').onclick=leaveRest;
 $('pause-button').onclick=()=>pause(!paused);$('unpause').onclick=()=>pause(false);
 $('respawn').onclick=()=>{game.respawn();camera=targetCamera();pause(false);};
@@ -150,9 +161,9 @@ function aimAt(e){const r=canvas.getBoundingClientRect();
  if(locked){pointer={x:clamp(pointer.x+e.movementX*960/r.width,0,960),y:clamp(pointer.y+e.movementY*540/r.height,0,540)};return;}
  pointer={x:clamp((e.clientX-r.left)*960/r.width,0,960),y:clamp((e.clientY-r.top)*540/r.height,0,540)};}
 shell.addEventListener('pointermove',aimAt);
-shell.addEventListener('pointerdown',e=>{if(![0,2].includes(e.button)||e.target.closest('.overlay'))return;canvas.focus();aimAt(e);if(started&&!paused){if(e.button===0){attackHeld=true;pressed.attack=true;}else pressed.jet=true;}requestLock();});
-window.addEventListener('pointerup',e=>{if(e.button===0)attackHeld=false;});
-window.addEventListener('pointercancel',()=>attackHeld=false);
+shell.addEventListener('pointerdown',e=>{if(![0,2].includes(e.button)||e.target.closest('.overlay'))return;canvas.focus();aimAt(e);if(started&&!paused){if(e.button===0){attackHeld=true;pressed.attack=true;}else if(game.character==='zoro')blockHeld=true;else pressed.jet=true;}requestLock();});
+window.addEventListener('pointerup',e=>{if(e.button===0)attackHeld=false;if(e.button===2)blockHeld=false;});
+window.addEventListener('pointercancel',()=>{attackHeld=false;blockHeld=false;});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 // Hub cue on the ship, march on the routes. The arenas pick their cue from the fight itself.
 const STAGE_TRACK={sunny:'hub',dock:'stage',streets:'stage',syrup:'stage'};
@@ -176,7 +187,7 @@ function processEvents(){for(const e of game.events){
  // Every gameplay event gets its cue from sfx.js; only the ones with side effects are listed here.
  Sfx.play(e.type,e);
  if(e.type==='save'){try{localStorage.setItem(SAVE_KEY,JSON.stringify(e.data));saved=e.data;}catch{saveAvailable=false;}}
- if(e.type==='stage'){camera=targetCamera();pressed={};scoreFor();}
+ if(e.type==='stage'){attackHeld=false;blockHeld=false;camera=targetCamera();pressed={};scoreFor();}
  if(e.type==='hurt')shake=.18;
  if(e.type==='rest')showRest();
  if(e.type==='victory'&&e.first)setTimeout(()=>{if(started&&!game.dead)showUnlock(e.boss);},2600);
@@ -289,6 +300,7 @@ const hotSprites={};
 function hotSprite(key,strength=1){const amount=Math.ceil(strength*8)/8,cache=key+amount;if(hotSprites[cache])return hotSprites[cache];const im=images[key],c=document.createElement('canvas');c.width=im.width;c.height=im.height;const g=c.getContext('2d');g.drawImage(im,0,0);const data=g.getImageData(0,0,c.width,c.height);for(let i=0;i<data.data.length;i+=4){const d=data.data,r=d[i],b=d[i+2],green=d[i+1];if(r>130&&green>65&&green<r*.92&&b<green*.94&&r-green<115){d[i]=Math.min(255,r+20*amount);d[i+1]=Math.round(green*(1-.24*amount));d[i+2]=Math.min(255,b+15*amount);}}g.putImageData(data,0,0);return hotSprites[cache]=c;}
 function drawPlayer(bob){drawPlayerArt(bob);const p=game.player;if(!p.gearFade)return;const t=1-p.gearFade/.65,x=p.x-camera.x,y=p.y-camera.y+bob;ctx.save();ctx.strokeStyle=`rgba(242,221,219,${(1-t)*.5})`;ctx.lineWidth=2;for(let i=0;i<6;i++){const sx=x+(i%2?1:-1)*(10+t*28),sy=y-14-i*7-t*18;ctx.beginPath();ctx.moveTo(sx,sy);ctx.quadraticCurveTo(sx+Math.sin(i+t*6)*9,sy-10,sx+3,sy-18);ctx.stroke();}ctx.restore();}
 function drawPlayerArt(bob){const p=game.player,x=p.x-camera.x,y=p.y-camera.y+bob;
+ if(game.character==='zoro'){ZoroArt.draw(ctx,images.zoro,p,x,y,game.time);return;}
  if(p.gearIntro){frame('luffy',5,x,y,.14,p.facing<0);const t=1-p.gearIntro/.6;ctx.strokeStyle='#f8c4b3';ctx.lineWidth=1;ctx.beginPath();ctx.ellipse(x,y,12+t*18,3+t*3,0,0,Math.PI*2);ctx.stroke();return;}
  if(p.special?.kind==='jetstamp'){
   const a=p.special,t=a.t,k=.16,im=images['jet-stamp'];
@@ -335,6 +347,7 @@ function villageProps(){if(game.stage!=='syrup')return;const im=images['syrup-pr
 // read the same way as the Orange Town crew.
 function drawEnemy(e){if(e.hp<=0)return;
  const x=e.x-camera.x,y=e.y-camera.y;if(x<-100||x>1060)return;
+ if(e.stun>0)text('STUN',x,y-100,10,'#fff3ac','center');
  const cats=game.stage==='syrup',art=cats?CAT_ART:ENEMY_ART,scale=cats?CAT_SCALE:ENEMY_SCALE[e.type];
  if(cats){const row={cutlass:0,brute:1,bomber:2}[e.type],i=e.state==='wind'?2:e.state==='active'?3:Math.abs(e.vx)>25?1:0;
   chapterSprite('cats',row*4+i,x,y,scale,e.facing);}
@@ -346,6 +359,7 @@ function drawEnemy(e){if(e.hp<=0)return;
  if(e.hp<e.maxHp){ctx.fillStyle='#182137';ctx.fillRect(x-20,head-14,40,4);ctx.fillStyle='#e8a165';ctx.fillRect(x-20,head-14,40*e.hp/e.maxHp,4);}
 }
 function drawBoss(){const b=game.boss;if(!b)return;
+ if(b.stun>0)text('STUN',b.x-camera.x,b.y-camera.y-120,11,'#fff3ac','center');
  const wind=b.state==='wind',active=b.state==='active',recover=b.state==='recover';
  if(active&&['lunge','flurry','feint','dive','hunt','pounce'].includes(b.attack)){ctx.save();for(let n=3;n>0;n--){ctx.globalAlpha=.07*(4-n);if(b.kind==='kuro')chapterSprite('kuro',3,b.x-camera.x-b.facing*n*17,b.y-camera.y,BOSS_SCALE,b.facing);else frame('buggy-melee',3,b.x-camera.x-b.facing*n*15,b.y-camera.y,BOSS_SCALE,b.facing>0);}ctx.restore();}
  ctx.save();const bx=b.x-camera.x,by=b.y-camera.y;const squash=wind?Math.sin(Math.min(1,(b.windTotal?1-b.timer/b.windTotal:.5))*Math.PI)*.035:recover?Math.sin(b.timer*8)*.02:0;ctx.translate(bx,by);ctx.scale(1+squash,1-squash);ctx.translate(-bx,-by);if(wind)ctx.translate(-b.facing*(2+Math.sin(game.time*16)*1.2),0);else if(recover)ctx.translate(b.facing*Math.max(0,b.timer)*3,0);else if(!active&&b.state!=='defeated')ctx.translate(0,Math.sin(game.time*4)*1.2);drawBossBase();ctx.restore();
@@ -405,10 +419,14 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
  image('hud-console',ox,oy,HUD.w,HUD.h);
  const [hx,hy,hw,hh]=HUD.health;
  bar('hud-health-fill',ox+hx,oy+hy,hw,game.hp/game.maxHp,hh);
- // One health point left: pulse the track's rim so the empty segments still read as empty.
- if(game.hp<=1&&!game.dead){ctx.save();ctx.globalAlpha=.35+.35*Math.sin(game.time*9);ctx.strokeStyle='#ff5f4a';ctx.lineWidth=2;ctx.strokeRect(ox+hx-2,oy+hy-2,hw+4,hh+4);ctx.restore();}
- // The divider overlay follows max health, so a new segment is a real segment and not a re-scaled fifth.
- image('hud-health-grid-'+game.maxHp,ox+hx,oy+hy,hw,hh);
+ // Low health: pulse the continuous track rim.
+ if(game.hp<=game.maxHp*.25&&!game.dead){ctx.save();ctx.globalAlpha=.35+.35*Math.sin(game.time*9);ctx.strokeStyle='#ff5f4a';ctx.lineWidth=2;ctx.strokeRect(ox+hx-2,oy+hy-2,hw+4,hh+4);ctx.restore();}
+ // Character-specific labels share the original console geometry.
+ // Continuous HP pool: no segment dividers.
+ glyphs(CHARACTERS[game.character].name.toUpperCase(),ox+66,oy+10);
+ glyphs(game.character==='zoro'?'ONI GIRI':'BAZOOKA',ox+82,oy+81,'left',7);
+ glyphs(game.character==='zoro'?'TIGER TRAP':'GATLING',ox+184,oy+81,'left',7);
+ if(game.character==='zoro'){ctx.fillStyle='#17263f';ctx.beginPath();ctx.arc(ox+31,oy+50,20,0,Math.PI*2);ctx.fill();ctx.drawImage(images.zoro,124,64,82,94,ox+16,oy+31,31,36);}
  glyphs(game.hp+'/'+game.maxHp,ox+HUD.valueRight,oy+HUD.nameRow,'right');
  const [mx,my,mw,mh]=HUD.meter;
  for(let i=0;i<3;i++){const left=ox+mx+i*HUD.meterPitch,fraction=clamp((game.meter-i*100)/100,0,1);
@@ -425,7 +443,7 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
  if(game.level>1){image('hud-level-badge',...HUD.stamp);glyphs(game.level,HUD.stamp[0]+41,HUD.stamp[1]+6);}
  const [kx,ky,kw,kh]=HUD.meat;
  ctx.fillStyle='#0b1629ee';ctx.fillRect(kx,ky,kw,kh);ctx.strokeStyle='#ae8851';ctx.strokeRect(kx+.5,ky+.5,kw-1,kh-1);
- image('meat',kx+8,ky+8,48,38);glyphs(game.heals+'/3',kx+70,ky+15);glyphs('F EAT',kx+70,ky+31,'left',8);
+ image('meat',kx+8,ky+8,48,38);glyphs(game.heals+'/3',kx+70,ky+15);glyphs('F +300',kx+66,ky+31,'left',8);
  if(game.healTime){ctx.fillStyle='#eeb76b';ctx.fillRect(kx+6,ky+53,(kw-12)*(1-game.healTime/.65),3);}
  if(game.boss&&game.bossStarted){const [fx,fy,fw,fh]=BOSS.bar;
   image('hud-boss-frame',BOSS.x,BOSS.y,BOSS.w,BOSS.h);if(game.boss.kind==='kuro'){ctx.fillStyle='#0c1629';ctx.fillRect(BOSS.x+12,BOSS.y+4,350,18);text('CAPTAIN KURO',BOSS.x+20,BOSS.y+17,12,'#e6c587');}
@@ -435,7 +453,7 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
   glyphs(game.boss.phase,BOSS.x+BOSS.phase[0],BOSS.y+BOSS.phase[1]);
  }
  if(fullscreen()&&started&&game.messageTime>0)plate(game.message,480,466);
- if(game.kuroDefeated){const p=game.player,gx=HUD.gear[0],gy=HUD.gear[1];
+ if(game.kuroDefeated&&game.character==='luffy'){const p=game.player,gx=HUD.gear[0],gy=HUD.gear[1];
   // Dim the badge when there is not a full bar to spend, the way Gatling dims before its unlock.
   const usable=p.gear>0||p.gearIntro>0||game.meter>=100;
   ctx.save();ctx.globalAlpha=usable?1:.55;image('hud-gear-badge',gx,gy,150,22);ctx.restore();
@@ -451,7 +469,7 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
  }
 
  if(game.dead){ctx.fillStyle='#101626b8';ctx.fillRect(0,0,960,540);text('THE VOYAGE CONTINUES',480,255,27,'#f0c88c','center');text('Returning to your signal station…',480,290,13,'#d0d7dd','center');}
- if(game.victoryTime>0){text(game.stage==='mansion'?'KURO DEFEATED':'BUGGY DEFEATED',480,190,34,'#ffdf91','center');text(game.stage==='mansion'?'Gear 2 unlocked · X to activate':'Gum-Gum Gatling unlocked',480,220,14,'#fff0cc','center');}
+ if(game.victoryTime>0){text(game.stage==='mansion'?'KURO DEFEATED':'BUGGY DEFEATED',480,190,34,'#ffdf91','center');text(game.stage==='mansion'?'Luffy unlocked Gear 2 · X':'Gatling + Tiger Trap unlocked',480,220,14,'#fff0cc','center');}
 
 }
 function render(){ctx.imageSmoothingEnabled=false;ctx.save();ctx.scale(ZOOM,ZOOM);backgrounds();if(!loaded){ctx.restore();return;}if(shake>0)ctx.translate(Math.round(Math.sin(game.time*100)*3),Math.round(Math.cos(game.time*83)*2));
@@ -465,14 +483,26 @@ function render(){ctx.imageSmoothingEnabled=false;ctx.save();ctx.scale(ZOOM,ZOOM
  if(started&&!paused){ctx.strokeStyle='#f6dfaa';ctx.lineWidth=1;ctx.beginPath();ctx.arc(pointer.x,pointer.y,6,0,Math.PI*2);ctx.moveTo(pointer.x-10,pointer.y);ctx.lineTo(pointer.x+10,pointer.y);ctx.moveTo(pointer.x,pointer.y-10);ctx.lineTo(pointer.x,pointer.y+10);ctx.stroke();}
 }
 let statusTime=0;
+function updateStatus(){
+ const p=game.player,zoro=game.character==='zoro';
+ $('status').textContent=started?game.world.name+' · '+CHARACTERS[game.character].name+' · Health '+game.hp+'/'+game.maxHp+' · '+game.berries+' berries'+(paused?' · Paused':''):'Ready at the Sunny';
+ const zone=[...(game.world.zones||[])].reverse().find(z=>p.x>=z.x),nearby=game.context();
+ $('game-info').textContent=!saveAvailable?'Browser saving is unavailable. Keep this tab open.':game.messageTime>0?game.message:nearby?.kind==='exit'?nearby.label:zone?zone.name:'Explore the Sunny, then travel from the lower deck.';
+ for(const kind of ['bazooka','gatling'])$(kind).disabled=!started||paused||game.dead>0||!!p.special||!!p.gearIntro||p.blocking||!p.grounded||p.stairs||p.attackCd>0||p.dash>0||game.meter<SPECIALS[kind].cost||(kind==='gatling'&&!game.buggyDefeated);
+ $('bazooka').textContent=zoro?'Q · Oni Giri · 2 bars':'Q · Bazooka · 2 bars';
+ $('gatling').textContent=game.buggyDefeated?(zoro?'R · Tiger Trap · 3 bars':'R · Gatling · 3 bars'):'R · Defeat Buggy to unlock';
+ $('charge').textContent=Math.floor(game.meter/100)+' / 3 bars · '+game.meter+' / 300';$('charge').setAttribute('aria-valuenow',game.meter);
+ Object.assign(canvas.dataset,{character:game.character,hp:String(game.hp),meter:String(game.meter),special:p.special?.kind||'',stage:game.stage,playerX:p.x.toFixed(1),playerY:p.y.toFixed(1),grounded:String(p.grounded),paused:String(paused)});
+ syncFullscreen();scoreFor();
+}
 function tick(now){const dt=Math.min(.1,(now-(last||now))/1000);last=now;
  if(started&&!paused&&loaded){accumulator+=dt;while(accumulator>=1/120&&!paused){
-  game.step(1/120,{...pressed,attackHeld,left:keys.has('KeyA'),right:keys.has('KeyD'),up:keys.has('KeyW'),down:keys.has('KeyS'),aim:{x:pointer.x/ZOOM+camera.x,y:pointer.y/ZOOM+camera.y}});pressed={};LuffyMotion.update(game.player,1/120);processEvents();accumulator-=1/120;
+  game.step(1/120,{...pressed,attackHeld,block:blockHeld,left:keys.has('KeyA'),right:keys.has('KeyD'),up:keys.has('KeyW'),down:keys.has('KeyS'),aim:{x:pointer.x/ZOOM+camera.x,y:pointer.y/ZOOM+camera.y}});pressed={};LuffyMotion.update(game.player,1/120);processEvents();accumulator-=1/120;
  }const target=targetCamera();camera.x+=(target.x-camera.x)*Math.min(1,dt*6);camera.y+=(target.y-camera.y)*Math.min(1,dt*5);shake=Math.max(0,shake-dt);
  }else accumulator=0;
  // Pale trail follows the red fill down, so a Bazooka's chunk of damage stays visible for a beat.
  const bossHp=game.boss&&game.bossStarted?game.boss.hp/game.boss.maxHp:1;
  bossTrail=bossHp>bossTrail?bossHp:Math.max(bossHp,bossTrail-dt*.5);
- render();statusTime+=dt;if(statusTime>.2){statusTime=0;$('status').textContent=started?game.world.name+' · Health '+game.hp+'/'+game.maxHp+' · '+game.berries+' berries'+(paused?' · Paused':''):'Ready at the Sunny';const zone=[...(game.world.zones||[])].reverse().find(z=>game.player.x>=z.x);const nearby=game.context();$('game-info').textContent=!saveAvailable?'Browser saving is unavailable. Keep this tab open.':game.messageTime>0?game.message:nearby?.kind==='exit'?nearby.label:zone?zone.name:'Explore the Sunny, then travel from the lower deck.';for(const kind of ['bazooka','gatling'])$(kind).disabled=!started||paused||game.dead>0||!!game.player.special||!!game.player.gearIntro||!game.player.grounded||game.player.stairs||game.player.attackCd>0||game.player.dash>0||game.meter<SPECIALS[kind].cost||(kind==='gatling'&&!game.buggyDefeated);$('gatling').textContent=game.buggyDefeated?'R · Gatling · 3 bars':'Gatling · Defeat Buggy to unlock';$('charge').textContent=Math.floor(game.meter/100)+' / 3 bars · '+game.meter+' / 300';$('charge').setAttribute('aria-valuenow',game.meter);canvas.dataset.meter=String(game.meter);canvas.dataset.special=game.player.special?.kind||'';canvas.dataset.stage=game.stage;canvas.dataset.playerX=game.player.x.toFixed(1);canvas.dataset.playerY=game.player.y.toFixed(1);canvas.dataset.grounded=String(game.player.grounded);canvas.dataset.paused=String(paused);syncFullscreen();scoreFor();}
+ render();statusTime+=dt;if(statusTime>.2){statusTime=0;updateStatus();}
  requestAnimationFrame(tick);}
 requestAnimationFrame(tick);

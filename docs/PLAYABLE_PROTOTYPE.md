@@ -1,5 +1,7 @@
 # First Voyage — playable prototype
 
+Current health and Zoro controls: [Crew and health update](CREW_COMBAT.md). This supersedes older single-character and segmented-health descriptions below.
+
 Open **http://127.0.0.1:8766/play/** and choose **Set sail**, **New voyage**, or **Continue voyage**. The canvas takes keyboard focus when you start. Click inside it again after using page controls.
 
 If the local server is stopped, run this from the project folder:
@@ -50,15 +52,15 @@ Escape is reclaimed by the browser in fullscreen: it leaves fullscreen, and the 
 
 ## Levelling
 
-Each captain defeated for the first time raises Luffy one level. A level adds a health segment and a modest raise to base damage, which every attack rides: ordinary punches, Gum-Gum Bazooka and Gum-Gum Gatling all scale from the same figure. The tiers live in `LEVELS` in `play/core.js`.
+Each captain defeated for the first time raises the crew one level. A level adds 120 maximum HP and a modest raise to base damage, which every attack rides: ordinary punches, Gum-Gum Bazooka and Gum-Gum Gatling all scale from the same figure. The tiers live in `LEVELS` in `play/core.js`.
 
 | Level | Earned by | Base damage | Max health |
 |---|---|---|---|
-| 1 | Starting kit | 1 | 5 |
-| 2 | Buggy | 1.5 | 6 |
-| 3 | Kuro | 2 | 7 |
+| 1 | Starting kit | 1 | 600 |
+| 2 | Buggy | 1.5 | 720 |
+| 3 | Kuro | 2 | 840 |
 
-The level is derived from the permanent victory flags rather than stored separately, so existing saves migrate on load and a rematch cannot level him again. A new segment arrives filled; the rest of the bar is not healed.
+The level is derived from the permanent victory flags rather than stored separately, so existing saves migrate on load and a rematch cannot level him again. The additional 120 HP arrives filled; the rest of the bar is not healed.
 
 Syrup Village is gated behind Buggy, so it is always played at level 2 or better. Its Black Cat crew therefore carries half again the chapter-one health — cutlass 8, bruiser 12, powder runner 6 — which keeps hits-to-kill within one hit of the chapter-one encounters at level 1. Chapter-one enemies are untouched. The scale is per stage via `enemyHp`, and each enemy remembers its spawn health so its bar reads correctly.
 
@@ -110,7 +112,7 @@ The `victory` event carries `first` and `boss`, and `tools/verify_gear.cjs` asse
 
 ## Heads-up display
 
-One console in the upper-left carries the straw-hat crest, Luffy's name, the berry count, current/maximum health, the health track, the three special segments, the dash cooldown and both special-move keys. The health track pulses its rim at one health point. A full special segment shimmers. Gum-Gum Gatling shows a padlock until Buggy is defeated. Below the console sit the `LVL` badge and, once Kuro has fallen, the Gear 2 badge: an `X` cap, the name, and a well that drains through the transformation with the seconds left beside it. It dims when there is not a full bar to spend. Both badges share the console's plate and its baked pixel lettering — the Gear indicator and the meat label were the last HUD text drawn in the browser's own font, which is why they looked washed out beside everything else. The health track's segment dividers follow max health, so a new segment reads as a real segment rather than a re-scaled fifth. The boss console at the bottom of the screen uses the same plate, lettering and palette: Buggy's name, the current phase, a red health fill, a pale trail that drains a beat later so a heavy hit stays readable, and a gold tick at the half-health point where he splits into phase two. It appears only once the encounter starts. The console, the `LVL` badge and the meat panel all start at the same x, so the left of the screen reads as one straight gutter. The Gear 2 badge is the deliberate exception: it shares the `LVL` badge's row, placed a fixed gap off its right edge, so the two read as a pair on one line rather than as a stack. `tools/verify_scene.cjs` lifts the geometry table out of `play/game.js` and fails if a gutter anchor drifts, if the badge pair comes apart, or if anything falls out of step with `hud-layout.json`.
+One console in the upper-left carries the straw-hat crest, Luffy's name, the berry count, current/maximum health, the health track, the three special segments, the dash cooldown and both special-move keys. The continuous health track pulses its rim below 25% health. A full special segment shimmers. Gum-Gum Gatling shows a padlock until Buggy is defeated. Below the console sit the `LVL` badge and, once Kuro has fallen, the Gear 2 badge: an `X` cap, the name, and a well that drains through the transformation with the seconds left beside it. It dims when there is not a full bar to spend. Both badges share the console's plate and its baked pixel lettering — the Gear indicator and the meat label were the last HUD text drawn in the browser's own font, which is why they looked washed out beside everything else. Health uses a numeric pool with no segment dividers. Character name, portrait and move labels follow the selected crew member. The boss console at the bottom of the screen uses the same plate, lettering and palette: Buggy's name, the current phase, a red health fill, a pale trail that drains a beat later so a heavy hit stays readable, and a gold tick at the half-health point where he splits into phase two. It appears only once the encounter starts. The console, the `LVL` badge and the meat panel all start at the same x, so the left of the screen reads as one straight gutter. The Gear 2 badge is the deliberate exception: it shares the `LVL` badge's row, placed a fixed gap off its right edge, so the two read as a pair on one line rather than as a stack. `tools/verify_scene.cjs` lifts the geometry table out of `play/game.js` and fails if a gutter anchor drifts, if the badge pair comes apart, or if anything falls out of step with `hud-layout.json`.
 
 ## Challenge update
 

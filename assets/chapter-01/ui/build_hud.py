@@ -105,15 +105,13 @@ console=[octagon(0,EDGE,.92),octagon(1,RIM,.95),octagon(3,BODY,.88),
 console+= [disc(31,50,24,EDGE,.95),disc(31,50,22,RIM),disc(31,50,20,'#17263f'),
  bitmap(HAT,31-21,50-len(HAT),2,HAT_COLORS)]
 # Rows: name, health, special meter, dash, move keys.
-console+= [label('LUFFY',66,10,2,PARCH)]
+# Character name and technique labels are drawn dynamically by game.js.
 console+= [well(64,29,225,14),well(64,51,73,10),well(140,51,73,10),well(216,51,73,10)]
 console+= [well(64,67,187,4),label('DASH',257,64,2,MUTED)]
 for cx,key,name,cost in [(64,'Q','BAZOOKA',2),(166,'R','GATLING',3)]:
  console.append(well(cx,79,14,14))
  console.append(label(key,cx+4,81,2,'#ffe0a0'))
- console.append(label(name,cx+18,81,2,PARCH))
- for pip in range(cost):
-  console.append(rect(cx+76+pip*7,83,5,5,EDGE)+rect(cx+77+pip*7,84,3,3,'#e0a95f'))
+ # Dynamic move label: Luffy and Zoro share the same plate.
 console=''.join(console)
 
 health_fill=(rect(0,0,225,14,'#cf3a44')+rect(0,0,225,1,'#ffab86')+rect(0,1,225,2,'#ef5f54')
@@ -307,7 +305,7 @@ config={'viewport':[640,360],
  'player':{'frame':'player-frame.svg','fill':'player-fill.svg','frame_size':[204,36],'fill_rect':[38,12,152,12],'screen_anchor':[12,12],'starting_max_health':5,'segments':5,'used_by':'preview/preview.js art study'},
  'boss':{'frame':'boss-frame.svg','fill':'boss-fill.svg','frame_size':[460,32],'fill_rect':[24,12,412,8],'screen_anchor':[90,314],'label':'BUGGY THE CLOWN','trail_delay_seconds':0.35},
  'console':{'used_by':'play/game.js, drawn 1:1 in 960x540 screen space','frame':'hud-console.svg','frame_size':[W,H],'screen_anchor':[16,14],
-  'health':{'fill':'hud-health-fill.svg','grid':'hud-health-grid-<segments>.svg','rect':[64,29,225,14],'segments':list(HEALTH_SEGMENTS)},
+  'health':{'fill':'hud-health-fill.svg','rect':[64,29,225,14],'mode':'continuous','max_hp':[600,720,840],'heal':300},
   'meter':{'fill':'hud-meter-fill.svg','last_segment_fill':'hud-meter-fill-hot.svg','rect':[64,51,73,10],'pitch':76,'segments':3},
   'dash':{'fill':'hud-dash-fill.svg','rect':[64,67,187,4]},
   'name_anchor':[66,10],'value_right':289,
@@ -315,7 +313,10 @@ config={'viewport':[640,360],
   'glyphs':{'file':'hud-glyphs.svg','order':GLYPH_ORDER,'cell':[6,10],'advance':8},
   'berries':{'coin':'hud-coin.svg','coin_anchor':[110,8],'value_anchor':[128,10]},
   'level':{'file':'hud-level-badge.svg','size':[LEVEL_W,22],'screen_anchor':[16,120],'value_anchor':[41,6]},
-  'gear':{'file':'hud-gear-badge.svg','fill':'hud-gear-fill.svg','size':[GEAR_W,22],'screen_anchor':[80,120],'fill_rect':[78,7,64,8]}},
+  'gear':{'file':'hud-gear-badge.svg','fill':'hud-gear-fill.svg','size':[GEAR_W,22],'screen_anchor':[80,120],'fill_rect':[78,7,64,8],'shares_row_with':'level','gap_from_level_badge':8},
+  'left_gutter':16,
+  'left_gutter_note':'Console, level badge and meat panel share one left gutter; the Gear 2 badge sits beside the level badge.',
+  'meat':{'icon':'meat.svg','icon_size':[48,38],'panel_size':[142,60],'screen_anchor':[16,466],'icon_offset':[8,8],'count_anchor':[70,15],'prompt_anchor':[66,31]}},
  'signpost':{'used_by':'play/game.js drawExits','board':'../props/sign-post.svg','size':[SIGN_W,SIGN_H],'label_anchor':[SIGN_W//2,7],'label_advance':10,'arrow':'../props/sign-arrow.svg','arrow_size':[ARROW_W,ARROW_H],'arrow_anchor':[SIGN_W//2,17],'foot_offset':SIGN_H-4},
  'boss_console':{'used_by':'play/game.js, drawn 1:1 in 960x540 screen space','frame':'hud-boss-frame.svg','frame_size':[BW,BH],'screen_anchor':[200,484],
   'health':{'fill':'hud-boss-fill.svg','trail':'hud-boss-trail.svg','grid':'hud-boss-grid.svg','rect':[16,24,528,14],'trail_delay_seconds':0.35,'phase_two_marker':0.5},

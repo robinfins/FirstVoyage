@@ -57,18 +57,19 @@
     ],
     "health": {
       "fill": "hud-health-fill.svg",
-      "grid": "hud-health-grid-<segments>.svg",
       "rect": [
         64,
         29,
         225,
         14
       ],
-      "segments": [
-        5,
-        6,
-        7
-      ]
+      "mode": "continuous",
+      "max_hp": [
+        600,
+        720,
+        840
+      ],
+      "heal": 300
     },
     "meter": {
       "fill": "hud-meter-fill.svg",
@@ -183,7 +184,7 @@
       "gap_from_level_badge": 8
     },
     "left_gutter": 16,
-    "left_gutter_note": "Console, level badge and meat panel all anchor here, so the overlay keeps one straight edge down the side of the screen. The Gear 2 badge is the exception: it shares the level badge's row, off its right edge.",
+    "left_gutter_note": "Console, level badge and meat panel share one left gutter; the Gear 2 badge sits beside the level badge.",
     "meat": {
       "icon": "meat.svg",
       "icon_size": [
@@ -207,7 +208,7 @@
         15
       ],
       "prompt_anchor": [
-        70,
+        66,
         31
       ]
     }

@@ -59,8 +59,13 @@ const FX={
  'gear-end'(t){air(t,{cut:2600,to:350,dur:.6,gain:.15});osc(t,{from:150,to:45,dur:.42,gain:.09});},
  'claw-sweep'(t){air(t,{cut:1100,to:4200,dur:.17,gain:.12});},
  'kuro-phase'(t){osc(t,{from:160,to:40,dur:.7,gain:.22});air(t,{cut:500,to:3000,dur:.6,gain:.12});},
+ character(t){[392,587,784].forEach((f,i)=>osc(t,{from:f,to:f,dur:.2,gain:.05,type:'triangle',delay:i*.07}));},
+ slash(t){air(t,{cut:900,to:5200,dur:.16,gain:.13});osc(t,{from:1300,to:650,dur:.09,gain:.035,type:'triangle'});},
+ block(t){air(t,{cut:4200,dur:.045,gain:.12});osc(t,{from:1250,to:850,dur:.18,gain:.07,type:'triangle'});},
+ parry(t){[1400,2100,2800].forEach((f,i)=>osc(t,{from:f,to:f*.9,dur:.32,gain:.05,type:'sine',delay:i*.014}));air(t,{cut:5400,dur:.04,gain:.16});},
  'special-start'(t,e){
-  if(e.kind==='jetstamp'){air(t,{cut:450,to:2200,dur:.24,gain:.18});osc(t,{from:160,to:460,dur:.22,gain:.1});}
+  if(['onigiri','tigertrap'].includes(e.kind)){osc(t,{from:800,to:1600,dur:.18,gain:.06,type:'triangle'});air(t,{cut:700,to:2300,dur:.2,gain:.08});}
+  else if(e.kind==='jetstamp'){air(t,{cut:450,to:2200,dur:.24,gain:.18});osc(t,{from:160,to:460,dur:.22,gain:.1});}
   else if(e.kind==='bazooka'){                       // both arms winding back: a long rising stretch
    osc(t,{from:90,to:260,dur:.55,gain:.12,type:'sawtooth',attack:.08});
    air(t,{cut:300,to:1500,q:3,dur:.55,gain:.06});
@@ -69,7 +74,8 @@ const FX={
    air(t,{cut:700,to:2200,q:2,dur:.18,gain:.05});}},
 
  'special-pulse'(t,e){
-  if(e.kind==='bazooka'||e.kind==='jetstamp'){   // cannon: deep drop, blast, crack on top
+  if(['onigiri','tigertrap'].includes(e.kind)){air(t,{cut:900,to:6000,dur:.28,gain:.22});osc(t,{from:220,to:50,dur:.23,gain:.22});[1600,2300].forEach(f=>osc(t,{from:f,to:f*.65,dur:.16,gain:.045,type:'triangle'}));}
+  else if(e.kind==='bazooka'||e.kind==='jetstamp'){   // cannon: deep drop, blast, crack on top
    osc(t,{from:180,to:32,dur:.42,gain:.42,type:'sine'});
    osc(t,{from:120,to:40,dur:.3,gain:.16,type:'square'});
    air(t,{cut:1800,to:180,q:.8,dur:.38,gain:.22,type:'lowpass'});

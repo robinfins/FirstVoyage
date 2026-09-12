@@ -33,8 +33,8 @@ test('Melee pirates chase beyond their old leash and jump onto platforms',()=>{
 test('Committed melee attacks retain a wind-up and damage grace',()=>{
  for(const type of ['cutlass','brute']){
   const g=fresh('dock');g.enemies=g.enemies.filter(e=>e.type===type).slice(0,1);const e=g.enemies[0];g.player.x=e.x-45;e.timer=0;
-  g.step(DT);assert.equal(e.state,'wind');advance(g,TYPES[type].wind*.7);assert.equal(g.hp,5);
-  advance(g,.5);assert(g.hp<5);assert(g.hp>=3);
+  g.step(DT);assert.equal(e.state,'wind');advance(g,TYPES[type].wind*.7);assert.equal(g.hp,600);
+  advance(g,.5);assert(g.hp<600);assert(g.hp>=370);
  }
 });
 test('Bombs explode on player, platform top, underside and side impacts',()=>{
@@ -54,7 +54,7 @@ test('Bombs explode on player, platform top, underside and side impacts',()=>{
 test('Moving platforms carry Luffy and spikes deal damage',()=>{
  const g=fresh('dock');g.enemies=[];const f=g.platforms().find(f=>f.motion),p=g.player;p.x=(f.x+f.end)/2;p.y=f.y;p.platform=f.id;p.grounded=true;const offset=p.x-f.x;
  advance(g,.5);const moved=g.platforms().find(q=>q.id===f.id);assert(Math.abs(p.x-moved.x-offset)<.1);assert.equal(p.y,moved.y);
- const h=g.world.hazards[0];p.x=(h.x+h.end)/2;p.y=h.y;p.invuln=0;g.step(DT);assert.equal(g.hp,4);
+ const h=g.world.hazards[0];p.x=(h.x+h.end)/2;p.y=h.y;p.invuln=0;g.step(DT);assert.equal(g.hp,480);
 });
 test('Longer routes and every consecutive parkour landing are reachable',()=>{
  for(const stage of ['dock','streets']){
@@ -68,7 +68,7 @@ test('Longer routes and every consecutive parkour landing are reachable',()=>{
      for(let i=0;i<210;i++){
       const next=g.platforms().find(f=>f.id===nextId),target=(next.x+next.end)/2;
       g.step(DT,{jump:i===0,up:true,right:p.x<target-8,left:p.x>target+8,dash:dashAt>=0&&i===Math.round(dashAt/DT)});
-      if(p.grounded&&p.platform===nextId){reached=true;break;}if(g.hp<5)break;
+      if(p.grounded&&p.platform===nextId){reached=true;break;}if(g.hp<600)break;
      }if(reached)break;
     }
    }
@@ -77,11 +77,11 @@ test('Longer routes and every consecutive parkour landing are reachable',()=>{
  }
 });
 test('Checkpoint IDs survive the longer maps; death and satchel saves still work',()=>{
- const g=fresh('dock');g.player.x=1580;g.hp=2;g.berries=12;g.interact();assert.equal(g.hp,5);assert.equal(g.checkpoint.id,'dock-a');assert.equal(g.context().label,'Press E to rest');
+ const g=fresh('dock');g.player.x=1580;g.hp=2;g.berries=12;g.interact();assert.equal(g.hp,600);assert.equal(g.checkpoint.id,'dock-a');assert.equal(g.context().label,'Press E to rest');
  g.closeRest();g.player.x=1670;g.player.lastSafe={x:1670,y:430};g.die();assert.equal(new Game(g.save()).satchel.amount,12);advance(g,1.7);assert.equal(g.stage,'dock');assert.equal(g.player.x,1535);
  g.player.x=1670;g.interact();assert.equal(g.berries,12);assert.equal(g.satchel,null);
  g.transition('streets');g.player.x=2290;g.interact();assert.equal(g.checkpoint.id,'streets-mid');g.closeRest();g.player.x=4490;g.interact();assert.equal(g.checkpoint.id,'streets-mid','nearby guards block rest');for(const e of g.enemies)if(Math.abs(e.x-4490)<185)e.hp=0;g.interact();assert.equal(g.checkpoint.id,'streets-b');
- const restored=new Game(g.save());assert.equal(restored.player.x,4445);assert.equal(restored.hp,5);
+ const restored=new Game(g.save());assert.equal(restored.player.x,4445);assert.equal(restored.hp,600);
 });
 test('Buggy varies attacks without immediate repeats and accelerates phase two',()=>{
  const g=fresh('circus'),b=g.boss;g.player.x=280;g.player.invuln=999;g.bossStarted=true;
@@ -130,21 +130,21 @@ test('Special requirements, cancellation and death reset are enforced',()=>{
  g.meter=300;g.player.dash=0;g.player.dashCd=0;g.player.airDash=true;g.player.grounded=true;g.player.attackCd=0;assert(g.startSpecial('gatling',{x:500,y:400}));g.die();assert.equal(g.meter,0);assert.equal(g.player.special,null);
 });
 test('Old dropped berries relocate to reachable ground after a map revision',()=>{const save=validSave({version:1,checkpoint:{stage:'dock',id:'dock-a'},satchel:{stage:'dock',x:720,y:430,amount:17}});assert.equal(save.satchel.amount,17);assert(save.satchel.x<700);assert.equal(save.satchel.y,430);});
-test('Captain victories level Luffy up: more damage on every attack, one more health segment',()=>{
+test('Captain victories level Luffy up: more damage on every attack, 120 more maximum HP',()=>{
  const g=fresh('circus');
- assert.equal(g.level,1);assert.equal(g.damage,LEVELS[0].damage);assert.equal(g.maxHp,5);
+ assert.equal(g.level,1);assert.equal(g.damage,LEVELS[0].damage);assert.equal(g.maxHp,600);
  // The gain is a step, not a doubling, and it reaches specials as well as punches.
  assert(LEVELS[1].damage>LEVELS[0].damage&&LEVELS[1].damage<LEVELS[0].damage*2,'level two is a modest raise');
  assert(LEVELS[2].damage>LEVELS[1].damage,'level three raises it again');
- for(let i=1;i<LEVELS.length;i++)assert.equal(LEVELS[i].maxHp,LEVELS[i-1].maxHp+1,'one segment per victory');
- g.hp=3;g.damageEnemy(g.boss,999,1);
- assert.equal(g.level,2);assert.equal(g.damage,LEVELS[1].damage);assert.equal(g.maxHp,6);
- assert.equal(g.hp,4,'the new segment arrives filled without healing the rest');
- const restored=new Game(g.save());assert.equal(restored.level,2);assert.equal(restored.maxHp,6);assert.equal(restored.hp,6);
+ for(let i=1;i<LEVELS.length;i++)assert.equal(LEVELS[i].maxHp,LEVELS[i-1].maxHp+120,'120 HP per victory');
+ g.hp=300;g.damageEnemy(g.boss,999,1);
+ assert.equal(g.level,2);assert.equal(g.damage,LEVELS[1].damage);assert.equal(g.maxHp,720);
+ assert.equal(g.hp,420,'the new maximum HP arrives filled without healing the rest');
+ const restored=new Game(g.save());assert.equal(restored.level,2);assert.equal(restored.maxHp,720);assert.equal(restored.hp,720);
  // A rematch must not level him again.
- g.player.x=880;g.player.y=430;g.interact();g.damageEnemy(g.boss,999,1);assert.equal(g.level,2);assert.equal(g.maxHp,6);
+ g.player.x=880;g.player.y=430;g.interact();g.damageEnemy(g.boss,999,1);assert.equal(g.level,2);assert.equal(g.maxHp,720);
  g.transition('mansion');g.damageEnemy(g.boss,999,1);
- assert(g.kuroDefeated);assert.equal(g.level,3);assert.equal(g.damage,LEVELS[2].damage);assert.equal(g.maxHp,7);
+ assert(g.kuroDefeated);assert.equal(g.level,3);assert.equal(g.damage,LEVELS[2].damage);assert.equal(g.maxHp,840);
  // Specials ride the same multiplier.
  const h=fresh('dock');h.updateEnemy=()=>{};h.enemies=h.enemies.slice(0,1);const e=h.enemies[0];
  Object.assign(h.player,{x:300,y:430});Object.assign(e,{x:470,y:430,hp:100,maxHp:100});

@@ -45,3 +45,4 @@ body.locked{overflow:hidden}
  font-size:12px;color:#8fd6b4;text-align:center}
 .card.unlock button{display:block;margin:18px auto 0;background:#edc276;color:#1f2530;
  border-color:#edc276;font-weight:750}
+#travel-list[data-view="crew"] button{display:block;text-align:left}#travel-list[data-view="crew"] .travel-name{display:block;font-weight:700}#travel-list[data-view="crew"] .travel-note{display:block;white-space:normal;line-height:1.6;margin-top:5px}
