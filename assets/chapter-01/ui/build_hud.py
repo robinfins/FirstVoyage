@@ -1,4 +1,4 @@
-"""Rebuild original pixel-geometry HUD SVG assets; no raster inputs required."""
+"""Rebuild original pixel-geometry HUD and signpost SVG assets; no raster inputs required."""
 from pathlib import Path
 import json, math
 OUT=Path(__file__).resolve().parent
@@ -25,7 +25,8 @@ FONT={'A':'.#.|#.#|###|#.#|#.#','B':'##.|#.#|##.|#.#|##.','C':'.##|#..|#..|#..|.
  '9':'###|#.#|###|..#|##.','/':'..#|..#|.#.|#..|#..','+':'...|.#.|###|.#.|...',
  '-':'...|...|###|...|...','x':'...|#.#|.#.|#.#|...','.':'...|...|...|...|.#.',
  ' ':'...|...|...|...|...'}
-GLYPH_ORDER='0123456789/+-x.'   # runtime strip; game.js indexes this exact order
+# Runtime strip; game.js indexes this exact order. Digits stay first so their indices never move.
+GLYPH_ORDER='0123456789/+-x. ABCDEFGHIJKLMNOPQRSTUVWXYZ'
 def bitmap(rows,x,y,s,colors):
  """Blit a character-grid bitmap as runs of same-colour pixels."""
  out=[]
@@ -108,7 +109,13 @@ console=''.join(console)
 
 health_fill=(rect(0,0,225,14,'#cf3a44')+rect(0,0,225,1,'#ffab86')+rect(0,1,225,2,'#ef5f54')
  +rect(0,11,225,3,'#8c2a3d')+rect(0,13,225,1,'#6b1d30'))
-health_grid=''.join(rect(45*i-1,0,2,14,'#08101c')+rect(45*i+1,0,1,14,'#33465f',.8) for i in range(1,5))
+HEALTH_SEGMENTS=(5,6,7)   # one per LEVELS tier in play/core.js
+def health_grid(segments):
+ out=[]
+ for i in range(1,segments):
+  x=round(225*i/segments)
+  out.append(rect(x-1,0,2,14,'#08101c')+rect(x+1,0,1,14,'#33465f',.8))
+ return ''.join(out)
 def meter_cell(base,lit,top,low,edge):
  return (rect(0,0,73,10,base)+rect(0,0,73,1,top)+rect(0,1,73,2,lit)
   +rect(0,7,73,2,low)+rect(0,9,73,1,edge))
@@ -136,37 +143,75 @@ boss_grid=(rect(262,0,1,14,'#08101c')+rect(263,0,2,14,'#f0c273')+rect(265,0,1,14
 
 coin=(disc(7,7,7,EDGE)+disc(7,7,6,'#f0c273')+disc(7,7,5,'#e0ae59')
  +disc(7,7,3,'#c98c3d')+label('B',6,5,1,'#4f3412'))
-pistol=(plate(66,22,'#7c2333',RIM_HI,.9)+label('PISTOL',6,6,2,'#ffe6bd')+label('+',54,6,2,'#ffd27a'))
+level_badge=(plate(52,22,'#2b4a3c',RIM_HI,.9)+label('LVL',9,6,2,'#ffe6bd'))
+
+# ---------------------------------------------------------------- world signposts
+WOOD='#8d5c33'; WOOD_HI='#b8824a'; WOOD_LO='#5d3a1e'; WOOD_EDGE='#33200f'
+IRON='#474350'; IRON_HI='#6f6a7c'; NAIL='#cdc6b2'
+SIGN_W,SIGN_H,BOARD_H=64,76,30
+def signpost():
+ out=[rect(26,BOARD_H-2,12,SIGN_H-BOARD_H-4,WOOD_EDGE)]          # post silhouette
+ out+=[rect(27,BOARD_H-2,10,SIGN_H-BOARD_H-5,WOOD),rect(27,BOARD_H-2,2,SIGN_H-BOARD_H-5,WOOD_HI),
+       rect(35,BOARD_H-2,2,SIGN_H-BOARD_H-5,WOOD_LO)]
+ for y in range(BOARD_H+4,SIGN_H-8,7): out.append(rect(29,y,6,1,WOOD_LO))   # grain
+ # earth mound at the foot, so the post is planted rather than floating
+ out+=[rect(18,SIGN_H-9,28,5,'#4a3b28'),rect(20,SIGN_H-10,24,2,'#5e4a31'),
+       rect(22,SIGN_H-11,8,1,'#6d5838'),rect(34,SIGN_H-11,7,1,'#6d5838')]
+ out+=[rect(0,0,SIGN_W,BOARD_H,WOOD_EDGE)]                        # board silhouette
+ out+=[rect(1,1,SIGN_W-2,BOARD_H-2,WOOD),rect(1,1,SIGN_W-2,2,WOOD_HI),rect(1,BOARD_H-4,SIGN_W-2,3,WOOD_LO)]
+ for y in (8,15,22): out.append(rect(3,y,SIGN_W-6,1,WOOD_LO))     # plank seams
+ out+=[rect(4,0,6,BOARD_H,IRON),rect(SIGN_W-10,0,6,BOARD_H,IRON), # iron straps
+       rect(4,0,2,BOARD_H,IRON_HI),rect(SIGN_W-10,0,2,BOARD_H,IRON_HI)]
+ for x,y in [(6,3),(6,BOARD_H-6),(SIGN_W-8,3),(SIGN_W-8,BOARD_H-6)]:
+  out+=[rect(x,y,3,3,'#2a2730'),rect(x,y,2,2,NAIL)]               # nail heads
+ return ''.join(out)
+# Arrow points right by default, so drawExits can flip it with the travel direction.
+# A shaft plus a solid triangular head, carved in the same parchment as the lettering.
+ARROW_W,ARROW_H=14,9
+def sign_chevron(color=PARCH):
+ cy,head=ARROW_H//2,7
+ out=[rect(1,cy-1,head,3,color)]
+ for y in range(ARROW_H):
+  w=6-abs(y-cy)
+  if w>0: out.append(rect(head,y,w,1,color))
+ return ''.join(out)
+sign_arrow=sign_chevron()
+pistol=signpost()
 
 assets=[('player-frame',204,36,player),('player-fill',152,12,pfill),
  ('boss-frame',460,32,boss),('boss-fill',412,8,bfill),
  ('player-full',204,36,player+f'<g transform="translate(38 12)">{pfill}</g>'),
  ('boss-full',460,32,boss+f'<g transform="translate(24 12)">{bfill}</g>'),
  ('hud-console',W,H,console),('hud-health-fill',225,14,health_fill),
- ('hud-health-grid',225,14,health_grid),('hud-meter-fill',73,10,meter_fill),
+ *[('hud-health-grid-%d'%n,225,14,health_grid(n)) for n in HEALTH_SEGMENTS],('hud-meter-fill',73,10,meter_fill),
  ('hud-meter-fill-hot',73,10,meter_hot),('hud-dash-fill',187,4,dash_fill),
  ('hud-glyphs',len(GLYPH_ORDER)*8-2,10,glyphs),('hud-lock',11,11,lock),
- ('hud-coin',14,14,coin),('hud-pistol-stamp',66,22,pistol),
+ ('hud-coin',14,14,coin),('hud-level-badge',52,22,level_badge),
  ('hud-boss-frame',BW,BH,boss_plate),('hud-boss-fill',528,14,boss_bar_fill),
  ('hud-boss-trail',528,14,boss_trail),('hud-boss-grid',528,14,boss_grid)]
+SIGN_ASSETS=[('sign-post',SIGN_W,SIGN_H,signpost()),('sign-arrow',ARROW_W,ARROW_H,sign_arrow)]
 for name,w,h,body in assets:
  (OUT/(name+'.svg')).write_text(svg(w,h,body,name.replace('-',' ')))
+PROPS=OUT.parent/'props'
+for name,w,h,body in SIGN_ASSETS:
+ (PROPS/(name+'.svg')).write_text(svg(w,h,body,name.replace('-',' ')))
 
 config={'viewport':[640,360],
  'player':{'frame':'player-frame.svg','fill':'player-fill.svg','frame_size':[204,36],'fill_rect':[38,12,152,12],'screen_anchor':[12,12],'starting_max_health':5,'segments':5,'used_by':'preview/preview.js art study'},
  'boss':{'frame':'boss-frame.svg','fill':'boss-fill.svg','frame_size':[460,32],'fill_rect':[24,12,412,8],'screen_anchor':[90,314],'label':'BUGGY THE CLOWN','trail_delay_seconds':0.35},
  'console':{'used_by':'play/game.js, drawn 1:1 in 960x540 screen space','frame':'hud-console.svg','frame_size':[W,H],'screen_anchor':[16,14],
-  'health':{'fill':'hud-health-fill.svg','grid':'hud-health-grid.svg','rect':[64,29,225,14],'segments':5},
+  'health':{'fill':'hud-health-fill.svg','grid':'hud-health-grid-<segments>.svg','rect':[64,29,225,14],'segments':list(HEALTH_SEGMENTS)},
   'meter':{'fill':'hud-meter-fill.svg','last_segment_fill':'hud-meter-fill-hot.svg','rect':[64,51,73,10],'pitch':76,'segments':3},
   'dash':{'fill':'hud-dash-fill.svg','rect':[64,67,187,4]},
   'name_anchor':[66,10],'value_right':289,
   'keys':[{'move':'bazooka','cap':[64,79,14,14],'label':[82,81],'cost':2},{'move':'gatling','cap':[166,79,14,14],'label':[184,81],'cost':3,'lock':'hud-lock.svg'}],
   'glyphs':{'file':'hud-glyphs.svg','order':GLYPH_ORDER,'cell':[6,10],'advance':8},
   'berries':{'coin':'hud-coin.svg','coin_anchor':[110,8],'value_anchor':[128,10]},
-  'pistol_upgrade':{'file':'hud-pistol-stamp.svg','size':[66,22],'screen_anchor':[16,120]}},
+  'level':{'file':'hud-level-badge.svg','size':[52,22],'screen_anchor':[16,120],'value_anchor':[37,6]}},
+ 'signpost':{'used_by':'play/game.js drawExits','board':'../props/sign-post.svg','size':[SIGN_W,SIGN_H],'label_anchor':[32,7],'arrow':'../props/sign-arrow.svg','arrow_size':[ARROW_W,ARROW_H],'arrow_anchor':[32,17],'foot_offset':SIGN_H-4},
  'boss_console':{'used_by':'play/game.js, drawn 1:1 in 960x540 screen space','frame':'hud-boss-frame.svg','frame_size':[BW,BH],'screen_anchor':[200,484],
   'health':{'fill':'hud-boss-fill.svg','trail':'hud-boss-trail.svg','grid':'hud-boss-grid.svg','rect':[16,24,528,14],'trail_delay_seconds':0.35,'phase_two_marker':0.5},
   'phase_value_anchor':[540,8]},
  'fill_behavior':'clip width from left by clamp(current / maximum, 0, 1); keep frame unchanged','screen_space':True}
 (OUT/'hud-layout.json').write_text(json.dumps(config,indent=2)+'\n')
-print(f'Created {len(assets)} transparent SVG HUD assets and hud-layout.json')
+print(f'Created {len(assets)} HUD and {len(SIGN_ASSETS)} signpost SVG assets, plus hud-layout.json')

@@ -56,6 +56,8 @@ const STAGES={
 };
 const TYPES={cutlass:{hp:5,speed:155,range:132,wind:.36,recover:.42,damage:1,jump:490},brute:{hp:8,speed:112,range:146,wind:.6,recover:.66,damage:2,jump:480},bomber:{hp:4,speed:85,range:335,wind:.65,recover:.85,damage:1,jump:0}};
 
+// One tier per captain victory. Damage scales every attack, ordinary and special alike.
+const LEVELS=[{damage:1,maxHp:5},{damage:1.5,maxHp:6},{damage:2,maxHp:7}];
 const METER={max:300,bar:100,perHit:20};
 const SPECIALS={
  bazooka:{name:'Gum-Gum Bazooka',cost:200,duration:1.12,startup:.62,pulses:1,interval:0,reach:210,radius:35,damage:12},
@@ -91,18 +93,23 @@ function segmentBox(ax,ay,bx,by,r){
 class Game {
  constructor(save) {
   const data=validSave(save);this.time=0;this.events=[];this.checkpoint=data?.checkpoint||{stage:'sunny',id:'sunny'};
-  this.berries=data?.berries||0;this.buggyDefeated=data?.buggyDefeated||false;this.damage=this.buggyDefeated?2:1;
-  this.kuroDefeated=data?.kuroDefeated||false;this.visited=data?.visited||[{stage:'sunny',id:'sunny'}];this.heals=3;this.healTime=0;this.resting=false;this.maxHp=5;this.hp=5;this.meter=0;this.deaths=0;this.satchel=data?.satchel||null;this.projectiles=[];this.effects=[];this.attackSerial=0;
+  this.berries=data?.berries||0;this.buggyDefeated=data?.buggyDefeated||false;
+  this.kuroDefeated=data?.kuroDefeated||false;this.applyLevel();this.hp=this.maxHp;
+  this.visited=data?.visited||[{stage:'sunny',id:'sunny'}];this.heals=3;this.healTime=0;this.resting=false;this.meter=0;this.deaths=0;this.satchel=data?.satchel||null;this.projectiles=[];this.effects=[];this.attackSerial=0;
   this.message='The crew is ready. Find the gangway on the lower deck.';this.messageTime=6;this.dead=0;this.victoryTime=0;
   this.rng=1234567;this.loadStage(this.checkpoint.stage);this.placeAtCheckpoint();
  }
+ // Level is derived from the permanent victory flags rather than stored, so saves need no new field.
+ applyLevel(){const tier=LEVELS[Math.min(LEVELS.length-1,(this.buggyDefeated?1:0)+(this.kuroDefeated?1:0))];
+  this.level=LEVELS.indexOf(tier)+1;this.damage=tier.damage;this.maxHp=tier.maxHp;}
+ levelUp(){const before=this.maxHp;this.applyLevel();this.hp+=Math.max(0,this.maxHp-before);}
  emit(type,data={}){this.events.push({type,...data});}
  say(text,seconds=3){this.message=text;this.messageTime=seconds;}
  save(){return {version:1,visited:this.visited.map(v=>({...v})),kuroDefeated:this.kuroDefeated,satchel:this.satchel?{...this.satchel}:null,checkpoint:{...this.checkpoint},berries:this.berries,buggyDefeated:this.buggyDefeated};}
  requestSave(){this.emit('save',{data:this.save()});}
  loadStage(stage,back=false) {
   this.stage=stage;this.world=STAGES[stage];this.projectiles=[];this.effects=[];this.boss=null;this.bossStarted=false;
-  this.enemies=this.world.enemies.map((e,i)=>({...e,id:stage+'-'+i,y:e.y||430,home:e.x,vx:0,vy:0,grounded:true,platform:'',drop:0,aggro:0,navTimer:0,combo:0,hp:TYPES[e.type].hp,state:'idle',timer:.3+i*.2,facing:-1,hit:0,attackCount:0}));
+  this.enemies=this.world.enemies.map((e,i)=>({...e,id:stage+'-'+i,y:e.y||430,home:e.x,vx:0,vy:0,grounded:true,platform:'',drop:0,aggro:0,navTimer:0,combo:0,hp:e.hp||Math.round(TYPES[e.type].hp*(this.world.enemyHp||1)),maxHp:e.hp||Math.round(TYPES[e.type].hp*(this.world.enemyHp||1)),state:'idle',timer:.3+i*.2,facing:-1,hit:0,attackCount:0}));
   const spawn=this.world.spawn;this.player={x:back?this.world.width-150:spawn.x,y:spawn.y,vx:0,vy:0,w:22,h:45,grounded:true,facing:1,coyote:.1,jumpBuffer:0,dash:0,dashCd:0,airDash:true,invuln:.6,attack:null,special:null,attackCd:0,drop:0,stairs:false,platform:'',lastSafe:{x:spawn.x,y:spawn.y}};
   if(stage==='sunny')this.player.x=back?1240:400;
   if(stage==='circus'&&!this.buggyDefeated)this.spawnBoss();
@@ -180,8 +187,8 @@ class Game {
   if(e===this.boss){if(e.hp===0)this.win();}
   else {e.vx+=dx*70;if(!e.hp){this.berries+=e.type==='brute'?8:5;this.emit('coin');}}
  }
- win(){if(!this.boss||this.boss.state==='defeated')return;if(this.boss.kind==='kuro'){const first=!this.kuroDefeated;this.kuroDefeated=true;if(first)this.berries+=100;this.projectiles=[];this.bossStarted=false;this.boss.state='defeated';this.victoryTime=5;this.say(first?'KURO DEFEATED · Second captain victory · +100 berries':'KURO DEFEATED · Rematch won!',6);this.requestSave();this.emit('victory');return;}const firstWin=!this.buggyDefeated;this.buggyDefeated=true;this.damage=2;if(firstWin)this.berries+=50;this.projectiles=[];this.bossStarted=false;this.victoryTime=5;
-  this.boss.state='defeated';this.boss.y=this.world.floor;this.boss.vy=0;this.say(firstWin?'BUGGY DEFEATED · Gatling unlocked! Pistol strengthened · +50 berries':'BUGGY DEFEATED · Rematch won!',7);this.requestSave();this.emit('victory');}
+ win(){if(!this.boss||this.boss.state==='defeated')return;if(this.boss.kind==='kuro'){const first=!this.kuroDefeated;this.kuroDefeated=true;if(first)this.levelUp();if(first)this.berries+=100;this.projectiles=[];this.bossStarted=false;this.boss.state='defeated';this.victoryTime=5;this.say(first?'KURO DEFEATED · LEVEL 3 · Second captain victory · +1 health · +100 berries':'KURO DEFEATED · Rematch won!',6);this.requestSave();this.emit('victory');return;}const firstWin=!this.buggyDefeated;this.buggyDefeated=true;if(firstWin)this.levelUp();if(firstWin)this.berries+=50;this.projectiles=[];this.bossStarted=false;this.victoryTime=5;
+  this.boss.state='defeated';this.boss.y=this.world.floor;this.boss.vy=0;this.say(firstWin?'BUGGY DEFEATED · LEVEL 2 · Gatling unlocked · +1 health · +50 berries':'BUGGY DEFEATED · Rematch won!',7);this.requestSave();this.emit('victory');}
  step(dt,input={}){
   if(this.resting)return;
   dt=clamp(dt,0,1/30);this.time+=dt;this.messageTime=Math.max(0,this.messageTime-dt);this.victoryTime=Math.max(0,this.victoryTime-dt);
@@ -353,6 +360,6 @@ class Game {
  }
 
 }
-const api={Game,STAGES,SHIP,TYPES,METER,SPECIALS,validSave,lineDistance,segmentBox,clamp};
+const api={Game,STAGES,SHIP,TYPES,LEVELS,METER,SPECIALS,validSave,lineDistance,segmentBox,clamp};
 if(typeof module!=='undefined'&&module.exports)module.exports=api;else root.PirateGame=api;
 })(typeof window!=='undefined'?window:globalThis);

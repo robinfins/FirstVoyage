@@ -2,19 +2,23 @@
 const {Game,STAGES,SHIP,TYPES,METER,SPECIALS,clamp}=PirateGame;
 const ZOOM=1.35, VIEW_W=960/ZOOM, VIEW_H=540/ZOOM;
 const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),$=id=>document.getElementById(id);
+const shell=document.querySelector('.game-shell');
 const SAVE_KEY='straw-hat-first-voyage-v1',images={},keys=new Set();
 let game,started=false,paused=false,loaded=false,last=0,accumulator=0,saved=null,saveAvailable=true;
 let camera={x:0,y:170},pointer={x:650,y:290},pressed={},shake=0,sound=false,audioContext=null;
 try{saved=PirateGame.validSave(JSON.parse(localStorage.getItem(SAVE_KEY)));}catch{saveAvailable=false;}
 game=new Game(saved);game.events=[];
-function load(key,path){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>resolve(key);im.src='../assets/chapter-01/'+path;});}
+// Bump when regenerated art must defeat a cached copy; script ?v= tags do not cover asset files.
+const ASSET_V='sign2';
+function load(key,path){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>resolve(key);im.src='../assets/chapter-01/'+path+'?v='+ASSET_V;});}
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
 for(const [key,path] of [['syrup-sky','syrup-dusk-sky.png'],['syrup-village','cleaned/syrup-village-midground.png'],['syrup-props','cleaned/syrup-woodland-foreground.png'],['cats','cleaned/black-cat-pirate-poses.png'],['kuro','cleaned/kuro-attack-poses.png']])assets.push([key,'../chapter-02/'+path]);
 assets.push(['meat','ui/meat.svg']);
 assets.push(['luffy-motion','motion/luffy-motion.png'],['luffy-stride','motion/luffy-stride.png']);
 assets.push(['terrain','terrain/pirate-terrain-atlas.png'],['sunny-rails','layers/sunny-rails-foreground.png']);
-for(const name of ['hud-console','hud-health-fill','hud-health-grid','hud-meter-fill','hud-meter-fill-hot','hud-dash-fill','hud-glyphs','hud-lock','hud-coin','hud-pistol-stamp','hud-boss-frame','hud-boss-fill','hud-boss-trail','hud-boss-grid'])assets.push([name,'ui/'+name+'.svg']);
+for(const name of ['hud-console','hud-health-fill','hud-health-grid-5','hud-health-grid-6','hud-health-grid-7','hud-meter-fill','hud-meter-fill-hot','hud-dash-fill','hud-glyphs','hud-lock','hud-coin','hud-boss-frame','hud-boss-fill','hud-boss-trail','hud-boss-grid','hud-level-badge'])assets.push([name,'ui/'+name+'.svg']);
+assets.push(['sign-post','props/sign-post.svg'],['sign-arrow','props/sign-arrow.svg']);
 Promise.all(assets.map(([key,path])=>load(key,path))).then(results=>{
  const failures=results.filter(Boolean);if(failures.length){$('loading').textContent='Could not load '+failures.join(', ')+'. Reload to retry.';return;}
  loaded=true;$('loading').textContent='Crew ready. Click to begin.';$('start').disabled=false;
@@ -22,18 +26,42 @@ Promise.all(assets.map(([key,path])=>load(key,path))).then(results=>{
 });
 function begin(fresh){game=new Game(fresh?null:saved);game.events=[];started=true;paused=false;keys.clear();pressed={};$('menu').hidden=true;$('pause-button').disabled=false;camera=targetCamera();canvas.focus();if(fresh){try{localStorage.setItem(SAVE_KEY,JSON.stringify(game.save()));}catch{saveAvailable=false;}}}
 $('start').onclick=()=>begin(true);$('resume').onclick=()=>begin(false);
-function pause(value){if(!started)return;if(game.resting){if(!value)leaveRest();return;}paused=value;keys.clear();pressed={};$('pause-menu').hidden=!paused;$('pause-button').textContent=paused?'Resume · Esc':'Pause · Esc';if(!paused)canvas.focus();}
-function showRest(){paused=true;keys.clear();pressed={};accumulator=0;$('pause-menu').hidden=true;$('rest-menu').hidden=false;$('pause-button').textContent='Resume · Esc';
+function pause(value){if(!started)return;if(game.resting){if(!value)leaveRest();return;}paused=value;keys.clear();pressed={};$('pause-menu').hidden=!paused;$('pause-button').textContent=paused?'Resume · Esc':'Pause · Esc';if(!paused)canvas.focus();if(paused&&locked)document.exitPointerLock();else requestLock();syncFullscreen();}
+function showRest(){paused=true;keys.clear();pressed={};accumulator=0;$('pause-menu').hidden=true;$('rest-menu').hidden=false;$('pause-button').textContent='Resume · Esc';if(locked)document.exitPointerLock();syncFullscreen();
  const list=$('travel-list');list.replaceChildren();for(const v of game.visited){const cp=STAGES[v.stage].checkpoints.find(c=>c.id===v.id);if(!cp)continue;const btn=document.createElement('button');btn.textContent=cp.name;btn.disabled=v.stage===game.checkpoint.stage&&v.id===game.checkpoint.id;btn.onclick=()=>{if(game.travel(v.stage,v.id)){processEvents();camera=targetCamera();showRest();}};list.append(btn);} $('leave-rest').focus();}
-function leaveRest(){game.closeRest();$('rest-menu').hidden=true;paused=false;accumulator=0;keys.clear();pressed={};$('pause-button').textContent='Pause · Esc';canvas.focus();}
+function leaveRest(){game.closeRest();$('rest-menu').hidden=true;paused=false;accumulator=0;keys.clear();pressed={};$('pause-button').textContent='Pause · Esc';canvas.focus();syncFullscreen();}
 $('leave-rest').onclick=leaveRest;
 $('pause-button').onclick=()=>pause(!paused);$('unpause').onclick=()=>pause(false);
 $('respawn').onclick=()=>{game.respawn();camera=targetCamera();pause(false);};
 for(const kind of ['bazooka','gatling'])$(kind).onclick=()=>{if(started&&!paused)pressed[kind]=true;canvas.focus();};
+let lockAim=false,locked=false;
+function fullscreen(){return document.fullscreenElement===shell;}
+// Pointer lock keeps the mouse inside the game entirely: movement deltas drive the crosshair,
+// which stays clamped to the canvas, so the system cursor can never reach another window.
+function requestLock(){if(!lockAim||locked||!started||paused||!canvas.requestPointerLock)return;
+ const r=canvas.requestPointerLock();if(r&&r.catch)r.catch(()=>{});}
+function syncLock(){const l=$('lock'),m=$('lock-menu');const text=locked?'Cursor locked':lockAim?'Lock cursor · click game':'Lock cursor';
+ for(const b of [l,m]){b.textContent=text;b.setAttribute('aria-pressed',String(lockAim));}}
+if(canvas.requestPointerLock){for(const id of ['lock','lock-menu'])$(id).onclick=()=>{
+  lockAim=!lockAim;if(lockAim)requestLock();else if(locked)document.exitPointerLock();syncLock();canvas.focus();};
+ document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===canvas;syncLock();syncFullscreen();});
+ document.addEventListener('pointerlockerror',()=>{lockAim=false;syncLock();game.say('This browser blocked pointer lock.',4);});
+}else for(const id of ['lock','lock-menu'])$(id).hidden=true;
+function toggleFullscreen(){if(fullscreen()){document.exitFullscreen();return;}
+ // Embedded views and some iframes refuse the request; say so rather than appearing to do nothing.
+ shell.requestFullscreen().catch(()=>game.say('This browser blocked fullscreen. F11 fills the window instead.',5));}
+function syncFullscreen(){const on=fullscreen();
+ for(const id of ['fullscreen','fullscreen-menu']){$(id).textContent=on?'Exit fullscreen':'Fullscreen';$(id).setAttribute('aria-pressed',String(on));}
+ // The drawn crosshair stands in for the pointer while playing; menus need a visible cursor back.
+ shell.classList.toggle('aiming',(on||locked)&&started&&!paused);
+}
+if(shell.requestFullscreen){for(const id of ['fullscreen','fullscreen-menu'])$(id).onclick=toggleFullscreen;
+ document.addEventListener('fullscreenchange',()=>{if(fullscreen())canvas.focus();else if(started)pause(true);syncFullscreen();});
+}else for(const id of ['fullscreen','fullscreen-menu'])$(id).hidden=true;
 $('sound').onclick=()=>{sound=!sound;$('sound').textContent=sound?'Sound on':'Sound off';$('sound').setAttribute('aria-pressed',sound);if(sound){audioContext ||= new (window.AudioContext||window.webkitAudioContext)();audioContext.resume();}};
 function tone(freq,duration=.08,type='triangle',volume=.03){if(!sound||!audioContext)return;const o=audioContext.createOscillator(),g=audioContext.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(volume,audioContext.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioContext.currentTime+duration);o.connect(g);g.connect(audioContext.destination);o.start();o.stop(audioContext.currentTime+duration);}
 window.addEventListener('keydown',e=>{
- if(e.code==='Escape'){e.preventDefault();if(!e.repeat)pause(!paused);return;}
+ if(e.code==='Escape'){if(fullscreen())return;e.preventDefault();if(!e.repeat)pause(!paused);return;}
  if(!started||paused||document.activeElement!==canvas)return;
  if(['KeyW','KeyA','KeyS','KeyD','Space','KeyE','KeyQ','KeyR'].includes(e.code))e.preventDefault();
  if(!keys.has(e.code)){if(e.code==='KeyW')pressed.jump=true;if(e.code==='KeyS')pressed.drop=true;if(e.code==='Space')pressed.dash=true;if(e.code==='KeyE')pressed.interact=true;if(e.code==='KeyQ')pressed.bazooka=true;if(e.code==='KeyR')pressed.gatling=true;if(e.code==='KeyF')pressed.heal=true;}
@@ -42,8 +70,14 @@ window.addEventListener('keydown',e=>{
 window.addEventListener('keyup',e=>keys.delete(e.code));
 window.addEventListener('blur',()=>{if(started)pause(true);});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&started)pause(true);});
-canvas.addEventListener('pointermove',e=>{const r=canvas.getBoundingClientRect();pointer={x:(e.clientX-r.left)*960/r.width,y:(e.clientY-r.top)*540/r.height};});
-canvas.addEventListener('pointerdown',e=>{if(e.button!==0)return;canvas.focus();const r=canvas.getBoundingClientRect();pointer={x:(e.clientX-r.left)*960/r.width,y:(e.clientY-r.top)*540/r.height};if(started&&!paused)pressed.attack=true;});
+// Aim is tracked across the whole shell and clamped to the canvas, so the letterbox beside a
+// fullscreen 16:9 frame still aims at the nearest edge instead of stranding the crosshair.
+function aimAt(e){const r=canvas.getBoundingClientRect();
+ // Locked aiming uses the same pixels-per-canvas-unit scale as free aiming, so the feel is unchanged.
+ if(locked){pointer={x:clamp(pointer.x+e.movementX*960/r.width,0,960),y:clamp(pointer.y+e.movementY*540/r.height,0,540)};return;}
+ pointer={x:clamp((e.clientX-r.left)*960/r.width,0,960),y:clamp((e.clientY-r.top)*540/r.height,0,540)};}
+shell.addEventListener('pointermove',aimAt);
+shell.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('.overlay'))return;canvas.focus();aimAt(e);if(started&&!paused)pressed.attack=true;requestLock();});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
 function targetCamera(){const p=game.player;return {x:clamp(p.x-VIEW_W*.44+(Math.abs(p.vx)>30?Math.sign(p.vx)*32:0),0,Math.max(0,game.world.width-VIEW_W)),y:clamp(p.y-300,-100,game.world.floor-300)};}
 function processEvents(){for(const e of game.events){
@@ -138,8 +172,15 @@ function shipRails(bob){image('sunny-rails',-camera.x,bob-camera.y,1672*.9,941*.
  image('sunny-ship-layer',-camera.x,bob-camera.y,1672*.9,941*.9);ctx.restore();
 }
 function drawCheckpoints(bob){for(const cp of game.world.checkpoints){frame('checkpoint-snail',2+Math.floor(game.time*1.5)%2,cp.x-camera.x,cp.y-camera.y+bob,.085);const active=cp.id===game.checkpoint.id;ctx.fillStyle=active?'#f8d68d':'#8ec9c9';ctx.beginPath();ctx.arc(cp.x-camera.x,cp.y-camera.y+bob-53,2.5,0,Math.PI*2);ctx.fill();}}
+const SIGN={w:64,h:76,label:7,arrow:17,arrowW:14,arrowH:9};
+const SIGN_LABEL={sunny:'SUNNY',dock:'DOCK',streets:'TOWN',circus:'CIRCUS',syrup:'SYRUP',mansion:'KURO'};
 function drawExits(bob){for(const e of game.world.exits){if(e.requiresBuggy&&!game.buggyDefeated)continue;if((game.stage==='circus'||game.stage==='mansion')&&game.boss&&game.boss.state!=='defeated')continue;
- const x=e.x-camera.x,y=e.y-camera.y+bob;ctx.fillStyle='#3c3031';ctx.fillRect(x-3,y-53,6,53);ctx.fillStyle='#d2a463';ctx.fillRect(x-20,y-55,42,23);text(e.to==='sunny'?'HOME':e.to==='syrup'?'SYRUP':'→',x,y-39,13,'#2a2730','center');
+ const x=Math.round(e.x-camera.x),y=Math.round(e.y-camera.y+bob),top=y-SIGN.h;
+ image('sign-post',x-SIGN.w/2,top,SIGN.w,SIGN.h);
+ glyphs(SIGN_LABEL[e.to]||'TRAVEL',x,top+SIGN.label,'center');
+ // Return exits sit at the low end of every stage, so the board points the way out.
+ const dir=e.x<game.world.width/2?-1:1,im=images['sign-arrow'];
+ if(im){ctx.save();ctx.translate(x,top+SIGN.arrow);ctx.scale(dir,1);ctx.drawImage(im,-SIGN.arrowW/2,0,SIGN.arrowW,SIGN.arrowH);ctx.restore();}
  }
 }
 function drawPlayer(bob){const p=game.player;if(p.grounded&&!p.stairs&&!p.dash&&!p.attack&&!p.special&&Math.abs(p.vx)>12){LuffyMotion.drawStride(ctx,images['luffy-stride'],p,p.x-camera.x,p.y-camera.y+bob,p.invuln>0&&Math.floor(game.time*16)%2?.48:1);return;}const pose=LuffyMotion.pose(p);if(pose!==null){const im=images['luffy-motion'],k=.27;ctx.save();ctx.globalAlpha=p.invuln>0&&Math.floor(game.time*16)%2?.48:1;ctx.translate(Math.round(p.x-camera.x),Math.round(p.y-camera.y+bob));ctx.scale(p.facing,1);ctx.drawImage(im,pose%4*384,Math.floor(pose/4)*384,384,384,-192*k,-340*k,384*k,384*k);ctx.restore();return;}if(p.special){SpecialArt.draw(ctx,images.luffy,p.special,p.x-camera.x,p.y-camera.y+bob,.14);return;}let index=0;
@@ -159,7 +200,7 @@ function drawEnemy(e){if(e.hp<=0)return;if(game.stage==='syrup'){const row={cutl
  const x=e.x-camera.x,y=e.y-camera.y;if(x<-100||x>1060)return;
  frame(key,enemyFrame(e),x,y,e.type==='brute'?.19:.16,e.facing>0); // source pirate art faces left
  if(e.state==='wind'){text('!',x,y-80,18,'#ff9775','center');ctx.strokeStyle='#ff806077';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-2);ctx.lineTo(x+e.facing*(e.type==='brute'?100:75),y-2);ctx.stroke();}
- if(e.hp<TYPES_HP[e.type]){ctx.fillStyle='#182137';ctx.fillRect(x-20,y-72,40,4);ctx.fillStyle='#e8a165';ctx.fillRect(x-20,y-72,40*e.hp/TYPES_HP[e.type],4);}
+ if(e.hp<e.maxHp){ctx.fillStyle='#182137';ctx.fillRect(x-20,y-72,40,4);ctx.fillStyle='#e8a165';ctx.fillRect(x-20,y-72,40*e.hp/e.maxHp,4);}
 }
 const TYPES_HP=Object.fromEntries(Object.entries(TYPES).map(([key,value])=>[key,value.hp]));
 function drawBoss(){const b=game.boss;if(!b)return;if(b.kind==='kuro'){const i=b.state==='defeated'?7:b.hit>0?7:b.state==='recover'?6:b.state==='wind'?(b.attack==='slash'?4:b.attack==='flurry'?1:2):b.state==='active'?(b.attack==='slash'?5:3):0;chapterSprite('kuro',i,b.x-camera.x,b.y-camera.y,.21,b.facing);if(b.state==='wind')text('!',b.x-camera.x,b.y-camera.y-110,22,'#ffb785','center');return;}let key='buggy-melee',i=Math.floor(game.time*3)%2;
@@ -193,10 +234,10 @@ const HUD={x:16,y:14,w:300,h:100,health:[64,29,225,14],meter:[64,51,73,10],meter
  dash:[64,67,187,4],valueRight:289,nameRow:10,lockGroup:[162,77,104,18],coin:[110,8],berries:[128,10],stamp:[16,120,66,22]};
 const BOSS={x:200,y:484,w:560,h:46,bar:[16,24,528,14],phase:[540,8]};
 let bossTrail=1;
-const GLYPH_ORDER='0123456789/+-x.';
+const GLYPH_ORDER='0123456789/+-x. ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 // Runtime numbers use the baked pixel strip so no HUD text falls back to the system font.
 function glyphs(value,x,y,align='left'){const s=String(value),im=images['hud-glyphs'];if(!im)return;
- let cx=Math.round(align==='right'?x-(s.length*8-2):x);
+ const run=s.length*8-2;let cx=Math.round(align==='right'?x-run:align==='center'?x-run/2:x);
  for(const ch of s){const i=GLYPH_ORDER.indexOf(ch);if(i>=0)ctx.drawImage(im,i*8,0,6,10,cx,Math.round(y),6,10);cx+=8;}
 }
 function bar(key,px,py,full,fraction,height){const w=Math.round(full*clamp(fraction,0,1));
@@ -207,7 +248,8 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
  bar('hud-health-fill',ox+hx,oy+hy,hw,game.hp/game.maxHp,hh);
  // One health point left: pulse the track's rim so the empty segments still read as empty.
  if(game.hp<=1&&!game.dead){ctx.save();ctx.globalAlpha=.35+.35*Math.sin(game.time*9);ctx.strokeStyle='#ff5f4a';ctx.lineWidth=2;ctx.strokeRect(ox+hx-2,oy+hy-2,hw+4,hh+4);ctx.restore();}
- image('hud-health-grid',ox+hx,oy+hy,hw,hh);
+ // The divider overlay follows max health, so a new segment is a real segment and not a re-scaled fifth.
+ image('hud-health-grid-'+game.maxHp,ox+hx,oy+hy,hw,hh);
  glyphs(game.hp+'/'+game.maxHp,ox+HUD.valueRight,oy+HUD.nameRow,'right');
  const [mx,my,mw,mh]=HUD.meter;
  for(let i=0;i<3;i++){const left=ox+mx+i*HUD.meterPitch,fraction=clamp((game.meter-i*100)/100,0,1);
@@ -221,7 +263,7 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
   image('hud-lock',ox+lx+7,oy+ly+4,11,11);
  }
  image('hud-coin',ox+HUD.coin[0],oy+HUD.coin[1],14,14);glyphs(game.berries,ox+HUD.berries[0],oy+HUD.berries[1]);
- if(game.damage>1)image('hud-pistol-stamp',...HUD.stamp);
+ if(game.level>1){image('hud-level-badge',...HUD.stamp);glyphs(game.level,HUD.stamp[0]+37,HUD.stamp[1]+6);}
  ctx.fillStyle='#0b1629ee';ctx.fillRect(16,466,142,60);ctx.strokeStyle='#ae8851';ctx.strokeRect(16.5,466.5,141,59);image('meat',24,474,48,38);glyphs(game.heals+'/3',86,483);text('F · EAT',86,510,10,'#e9d3a1');if(game.healTime){ctx.fillStyle='#eeb76b';ctx.fillRect(22,519,128*(1-game.healTime/.65),3);}
  if(game.boss&&game.bossStarted){const [fx,fy,fw,fh]=BOSS.bar;
   image('hud-boss-frame',BOSS.x,BOSS.y,BOSS.w,BOSS.h);if(game.boss.kind==='kuro'){ctx.fillStyle='#0c1629';ctx.fillRect(BOSS.x+12,BOSS.y+4,350,18);text('CAPTAIN KURO',BOSS.x+20,BOSS.y+17,12,'#e6c587');}
@@ -230,6 +272,7 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
   image('hud-boss-grid',BOSS.x+fx,BOSS.y+fy,fw,fh);
   glyphs(game.boss.phase,BOSS.x+BOSS.phase[0],BOSS.y+BOSS.phase[1]);
  }
+ if(fullscreen()&&started&&game.messageTime>0)plate(game.message,480,466);
  const c=game.context();if(c){
   const label=c.kind==='checkpoint'?'Press E to rest':c.kind==='satchel'?'E · Recover':c.kind==='rematch'?'E · Rematch':'E · Travel';
   plate(label,clamp((c.x-camera.x)*ZOOM,90,870),(c.y-camera.y-68)*ZOOM);
@@ -258,6 +301,6 @@ function tick(now){const dt=Math.min(.1,(now-(last||now))/1000);last=now;
  // Pale trail follows the red fill down, so a Bazooka's chunk of damage stays visible for a beat.
  const bossHp=game.boss&&game.bossStarted?game.boss.hp/game.boss.maxHp:1;
  bossTrail=bossHp>bossTrail?bossHp:Math.max(bossHp,bossTrail-dt*.5);
- render();statusTime+=dt;if(statusTime>.2){statusTime=0;$('status').textContent=started?game.world.name+' · Health '+game.hp+'/'+game.maxHp+' · '+game.berries+' berries'+(paused?' · Paused':''):'Ready at the Sunny';const zone=[...(game.world.zones||[])].reverse().find(z=>game.player.x>=z.x);const nearby=game.context();$('game-info').textContent=!saveAvailable?'Browser saving is unavailable. Keep this tab open.':game.messageTime>0?game.message:nearby?.kind==='exit'?nearby.label:zone?zone.name:'Explore the Sunny, then travel from the lower deck.';for(const kind of ['bazooka','gatling'])$(kind).disabled=!started||paused||game.dead>0||!!game.player.special||!game.player.grounded||game.player.stairs||game.player.attackCd>0||game.player.dash>0||game.meter<SPECIALS[kind].cost||(kind==='gatling'&&!game.buggyDefeated);$('gatling').textContent=game.buggyDefeated?'R · Gatling · 3 bars':'Gatling · Defeat Buggy to unlock';$('charge').textContent=Math.floor(game.meter/100)+' / 3 bars · '+game.meter+' / 300';$('charge').setAttribute('aria-valuenow',game.meter);canvas.dataset.meter=String(game.meter);canvas.dataset.special=game.player.special?.kind||'';canvas.dataset.stage=game.stage;canvas.dataset.playerX=game.player.x.toFixed(1);canvas.dataset.playerY=game.player.y.toFixed(1);canvas.dataset.grounded=String(game.player.grounded);canvas.dataset.paused=String(paused);}
+ render();statusTime+=dt;if(statusTime>.2){statusTime=0;$('status').textContent=started?game.world.name+' · Health '+game.hp+'/'+game.maxHp+' · '+game.berries+' berries'+(paused?' · Paused':''):'Ready at the Sunny';const zone=[...(game.world.zones||[])].reverse().find(z=>game.player.x>=z.x);const nearby=game.context();$('game-info').textContent=!saveAvailable?'Browser saving is unavailable. Keep this tab open.':game.messageTime>0?game.message:nearby?.kind==='exit'?nearby.label:zone?zone.name:'Explore the Sunny, then travel from the lower deck.';for(const kind of ['bazooka','gatling'])$(kind).disabled=!started||paused||game.dead>0||!!game.player.special||!game.player.grounded||game.player.stairs||game.player.attackCd>0||game.player.dash>0||game.meter<SPECIALS[kind].cost||(kind==='gatling'&&!game.buggyDefeated);$('gatling').textContent=game.buggyDefeated?'R · Gatling · 3 bars':'Gatling · Defeat Buggy to unlock';$('charge').textContent=Math.floor(game.meter/100)+' / 3 bars · '+game.meter+' / 300';$('charge').setAttribute('aria-valuenow',game.meter);canvas.dataset.meter=String(game.meter);canvas.dataset.special=game.player.special?.kind||'';canvas.dataset.stage=game.stage;canvas.dataset.playerX=game.player.x.toFixed(1);canvas.dataset.playerY=game.player.y.toFixed(1);canvas.dataset.grounded=String(game.player.grounded);canvas.dataset.paused=String(paused);syncFullscreen();}
  requestAnimationFrame(tick);}
 requestAnimationFrame(tick);

@@ -21,7 +21,9 @@ python3 -m http.server 8766 --bind 127.0.0.1
 | Left mouse click | Punch toward the pointer, including upward and diagonal attacks |
 | Q | Gum-Gum Bazooka; consumes two full special bars |
 | R | Gum-Gum Gatling; consumes all three special bars |
-| Esc | Pause / resume |
+| Esc | Pause / resume; in fullscreen it leaves fullscreen and pauses |
+| Fullscreen button | Fill the screen; also in the pause menu |
+| Lock cursor button | Capture the mouse inside the game; also in the pause menu |
 
 A dash has a short cooldown and avoids damage while active. You get one dash in the air, refreshed by landing. Each click is one punch. Jumping uses a short input buffer and coyote window. Moving away from the tab pauses the game. Sound effects can be enabled with the Sound button.
 
@@ -35,9 +37,33 @@ Three segments sit directly below Luffy's health bar. Every successful ordinary 
 
 Both moves require Luffy to be grounded and lock their direction when activated. Movement, jumping, ordinary attacks and interactions are unavailable during the move. Dash cancels either special when a dash is available; consumed bars are not refunded. The controls below the canvas show current charge and only enable a move when its cost and activation conditions are met.
 
+## Fullscreen
+
+**Fullscreen** in the bar under the canvas, and in the pause menu, expands the game shell so the canvas fills the display and the aiming cursor stays over the fight instead of wandering onto the page. The canvas keeps its 960 x 540 backing store and letterboxes to 16:9, so nothing is cropped or distorted at any display shape.
+
+Aim is tracked across the whole shell and clamped to the canvas, so a pointer sitting in the letterbox aims at the nearest edge rather than stranding the crosshair. While playing in fullscreen the system pointer is hidden and the drawn crosshair stands in for it; menus bring it straight back. The page's status line is not on screen there, so transient notifications are drawn at the bottom of the canvas instead.
+
+**Lock cursor** goes further: it captures the mouse outright, so it cannot reach another window or monitor at all. Aiming switches to mouse movement deltas at the same pixels-per-canvas-unit scale as free aiming, so the feel is unchanged, and the crosshair stays clamped to the canvas. It works windowed as well as in fullscreen. Menus release the pointer so they stay clickable, and Escape releases it too; click the canvas to re-arm it. A browser that refuses the request says so and clears the toggle rather than leaving it stuck on.
+
+Escape is reclaimed by the browser in fullscreen: it leaves fullscreen, and the game pauses on the way out. A browser that refuses the request (an embedded view, or an iframe without permission) reports that in the notification line rather than silently doing nothing.
+
+## Levelling
+
+Each captain defeated for the first time raises Luffy one level. A level adds a health segment and a modest raise to base damage, which every attack rides: ordinary punches, Gum-Gum Bazooka and Gum-Gum Gatling all scale from the same figure. The tiers live in `LEVELS` in `play/core.js`.
+
+| Level | Earned by | Base damage | Max health |
+|---|---|---|---|
+| 1 | Starting kit | 1 | 5 |
+| 2 | Buggy | 1.5 | 6 |
+| 3 | Kuro | 2 | 7 |
+
+The level is derived from the permanent victory flags rather than stored separately, so existing saves migrate on load and a rematch cannot level him again. A new segment arrives filled; the rest of the bar is not healed.
+
+Syrup Village is gated behind Buggy, so it is always played at level 2 or better. Its Black Cat crew therefore carries half again the chapter-one health — cutlass 8, bruiser 12, powder runner 6 — which keeps hits-to-kill within one hit of the chapter-one encounters at level 1. Chapter-one enemies are untouched. The scale is per stage via `enemyHp`, and each enemy remembers its spawn health so its bar reads correctly.
+
 ## Heads-up display
 
-One console in the upper-left carries the straw-hat crest, Luffy's name, the berry count, current/maximum health, the five-segment health track, the three special segments, the dash cooldown and both special-move keys. The health track pulses its rim at one health point. A full special segment shimmers. Gum-Gum Gatling shows a padlock until Buggy is defeated, and a `PISTOL+` stamp appears below the console once punch damage is doubled. The boss console at the bottom of the screen uses the same plate, lettering and palette: Buggy's name, the current phase, a red health fill, a pale trail that drains a beat later so a heavy hit stays readable, and a gold tick at the half-health point where he splits into phase two. It appears only once the encounter starts.
+One console in the upper-left carries the straw-hat crest, Luffy's name, the berry count, current/maximum health, the health track, the three special segments, the dash cooldown and both special-move keys. The health track pulses its rim at one health point. A full special segment shimmers. Gum-Gum Gatling shows a padlock until Buggy is defeated, and an `LVL` badge appears below the console once Luffy is past level one. The health track's segment dividers follow max health, so a new segment reads as a real segment rather than a re-scaled fifth. The boss console at the bottom of the screen uses the same plate, lettering and palette: Buggy's name, the current phase, a red health fill, a pale trail that drains a beat later so a heavy hit stays readable, and a gold tick at the half-health point where he splits into phase two. It appears only once the encounter starts.
 
 ## Challenge update
 
@@ -48,13 +74,17 @@ The world camera is now 1.35× closer while health bars stay the same screen siz
 1. **Sunny:** both decks and the W/S stair connection remain playable. Rest at the galley snail and use the right-hand lower-deck marker to travel.
 2. **Broken quays:** 4,200 world pixels, up from 1,840. Nine pirates guard landing patrols, staggered cargo stacks, a signal quay, suspended hoists, a spiked warehouse barricade and a crane crossing. Gaps make platforming mandatory. One hoist moves horizontally. The dock checkpoint is on the signal quay.
 3. **Rooftop siege:** 4,800 world pixels, up from 2,080. Ten pirates guard an awning ascent, chimney jumps, a courtyard, a bell-tower crossing and the final barricade. An elevator platform moves vertically. Ground spikes punish careless rushing. A new courtyard checkpoint breaks up the longer route; the circus checkpoint remains before Buggy.
-4. **Buggy:** five shuffled attack types in phase one—knife fans, lunges, returning hands, impact bombs and aerial dives. Phase two adds staggered crossfire, double lunges and shorter delays. A landing marker warns of the dive. He closes distance faster, can target an airborne Luffy, and does not immediately repeat an attack type. Victory still grants 50 berries and permanently doubles punch damage.
+4. **Buggy:** five shuffled attack types in phase one—knife fans, lunges, returning hands, impact bombs and aerial dives. Phase two adds staggered crossfire, double lunges and shorter delays. A landing marker warns of the dive. He closes distance faster, can target an airborne Luffy, and does not immediately repeat an attack type. Victory still grants 50 berries and levels Luffy up.
 
 Melee pirates pursue beyond their original spawn areas. They navigate to connected platforms, jump after Luffy, drop down when needed, and lunge during attacks. Cutlass pirates can follow a first swipe with a second. Cutlass/brute/bomber health is now 5/8/4. Bomb throwers retreat from close pressure and throw more often.
 
 Bombs explode immediately when they touch Luffy or the top, side or underside of terrain, including moving platforms. A swept collision check catches impacts between simulation steps. Bombs falling into a gap continue downward; they do not explode on an invisible floor. Returning hands reverse direction, so crossing their first pass is not the entire dodge.
 
 Rest restores all five health points and respawns ordinary pirates. A nearby pirate prevents resting. Death returns you to the last saved snail and leaves a recoverable berry satchel on your last safe surface. Spike surfaces and moving platforms are excluded from safe-surface recording. Dying again replaces that satchel. The pause menu offers Return to checkpoint as a prototype recovery option.
+
+## Travel signs
+
+Every stage exit is marked by a wooden signpost: a planked board with iron straps, nail heads and a carved destination name, on a grained post set in an earth mound. The name and the direction chevron tell you where the marker leads before you press E. Boards are generated by `assets/chapter-01/ui/build_hud.py` into `assets/chapter-01/props/`, and the lettering comes from the same 3 x 5 pixel font as the HUD, which now carries the full alphabet so any label can be set at runtime.
 
 ## Sunny changes
 

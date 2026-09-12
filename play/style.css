@@ -5,3 +5,9 @@
 .special-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:16px}.special-controls>span{font-size:12px;color:#d8bf8b;margin-right:auto}.special-controls button:disabled{cursor:default}
 
 #rest-menu .card{max-height:90%;overflow:auto}#travel-list{display:flex;flex-wrap:wrap;gap:8px;margin:16px 0}#travel-list button{font-size:13px;padding:10px}
+
+/* Fullscreen: the shell carries the canvas and its overlays, so the rest of the page drops away.
+   The canvas letterboxes to 16:9, and the drawn crosshair replaces the pointer while playing. */
+.game-shell:fullscreen{width:100vw;height:100vh;display:grid;place-items:center;border:0;background:#05090f;box-shadow:none}
+.game-shell:fullscreen canvas{width:min(100vw,calc(100vh*16/9));height:auto}
+.game-shell.aiming,.game-shell.aiming canvas{cursor:none}

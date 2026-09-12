@@ -1,6 +1,8 @@
 (function(root){
 const stages={
- syrup:{name:'Syrup Village · Black Cat ambush',width:3700,spawn:{x:100,y:430},floor:430,
+ // Syrup is gated behind Buggy, so it is always played at level 2 or better: its Black Cat crew
+ // carries half again the chapter-one health to keep hits-to-kill in the same range.
+ syrup:{name:'Syrup Village · Black Cat ambush',width:3700,spawn:{x:100,y:430},floor:430,enemyHp:1.5,
  platforms:[{x:0,end:620,y:430,id:'village-entry'},{x:700,end:860,y:350,id:'root-a'},{x:950,end:1130,y:280,id:'root-b'},{x:1240,end:1390,y:340,id:'root-c'},{x:1490,end:2140,y:430,id:'village-square'},{x:2220,end:2390,y:350,id:'roof-a'},{x:2480,end:2650,y:275,id:'roof-b'},{x:2740,end:2900,y:345,id:'roof-c'},{x:3010,end:3700,y:430,id:'mansion-gates'}],
  hazards:[{x:1870,end:1940,y:430},{x:3160,end:3230,y:430}],
  checkpoints:[{id:'syrup-a',x:260,y:430,name:'Village landing snail'},{id:'syrup-b',x:1640,y:430,name:'Village square snail'},{id:'syrup-c',x:3460,y:430,name:'Mansion gate snail'}],

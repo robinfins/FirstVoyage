@@ -42,12 +42,14 @@ At logical 640 × 360, foreground waterline is 319; the Sunny deck is about 284.
 
 ## Health overlays
 
-- Gameplay console: [panel](ui/hud-console.svg) plus [health fill](ui/hud-health-fill.svg), [segment grid](ui/hud-health-grid.svg), [meter cell](ui/hud-meter-fill.svg) and its [third-bar variant](ui/hud-meter-fill-hot.svg), [dash fill](ui/hud-dash-fill.svg), [glyph strip](ui/hud-glyphs.svg), [coin](ui/hud-coin.svg), [lock](ui/hud-lock.svg) and [Pistol stamp](ui/hud-pistol-stamp.svg).
+- Gameplay console: [panel](ui/hud-console.svg) plus [health fill](ui/hud-health-fill.svg), [meter cell](ui/hud-meter-fill.svg) and its [third-bar variant](ui/hud-meter-fill-hot.svg), [dash fill](ui/hud-dash-fill.svg), [glyph strip](ui/hud-glyphs.svg), [coin](ui/hud-coin.svg) and [lock](ui/hud-lock.svg).
 - Boss console: [panel](ui/hud-boss-frame.svg) with [fill](ui/hud-boss-fill.svg), a delayed [damage trail](ui/hud-boss-trail.svg) and a [phase-two marker](ui/hud-boss-grid.svg) at half health.
 - Legacy 640 × 360 study bars, used by the motion preview only: player [frame](ui/player-frame.svg), [fill](ui/player-fill.svg), [preview](ui/player-full.svg); boss [frame](ui/boss-frame.svg), [fill](ui/boss-fill.svg), [preview](ui/boss-full.svg).
+- Level badge: [badge](ui/hud-level-badge.svg); health dividers come in one overlay per max health (`hud-health-grid-5/6/7.svg`).
+- World signposts: [board](../chapter-01/props/sign-post.svg) and [direction chevron](../chapter-01/props/sign-arrow.svg), written to `props/` by the same generator.
 - [HUD metadata](ui/hud-layout.json) defines fill rectangles and screen anchors.
 
-Clip the fill width without stretching the frame. The console is authored at its exact 300 × 100 screen size and drawn 1:1, so nothing is resampled. Every label is baked from a 3 × 5 pixel font in the generator; runtime numbers come from the glyph strip, so the HUD never falls back to a system font. The motion study includes live health controls and a delayed boss damage trail. HUD coordinates stay fixed as the world moves.
+Clip the fill width without stretching the frame. The console is authored at its exact 300 × 100 screen size and drawn 1:1, so nothing is resampled. Every label is baked from a 3 × 5 pixel font in the generator; runtime numbers and sign lettering come from the glyph strip, which carries digits, symbols and the full alphabet, so the HUD never falls back to a system font. The motion study includes live health controls and a delayed boss damage trail. HUD coordinates stay fixed as the world moves.
 
 ## Rebuild and verify
 

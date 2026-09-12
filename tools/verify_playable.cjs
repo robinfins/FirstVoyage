@@ -1,5 +1,5 @@
 const assert=require('node:assert/strict');
-const {Game,SHIP,TYPES,METER,SPECIALS,validSave,segmentBox}=require('../play/core.js');
+const {Game,SHIP,TYPES,LEVELS,METER,SPECIALS,validSave,segmentBox}=require('../play/core.js');
 const DT=1/120;
 function advance(g,seconds,input={}){for(let i=0;i<Math.round(seconds/DT);i++)g.step(DT,typeof input==='function'?input(i):input);}
 function fresh(stage='sunny'){const g=new Game();g.loadStage(stage);g.player.invuln=0;return g;}
@@ -96,7 +96,7 @@ test('Returning hands, aerial landing attacks and single-grant boss victory',()=
  b.attack='hand';b.state='wind';b.timer=0;b.facing=-1;g.step(DT);const hand=g.projectiles.find(q=>q.kind==='hand');assert(hand);advance(g,.8);assert(hand.vx>0);
  g.projectiles=[];b.attack='dive';b.state='wind';b.timer=0;b.aim={x:500,y:406};g.step(DT);assert(b.vy<0);let landed=false;
  for(let i=0;i<150;i++){g.step(DT);landed ||= g.projectiles.some(q=>q.kind==='blast');}assert(landed);assert.equal(b.y,430);
- g.damageEnemy(b,b.hp,1);assert(g.buggyDefeated);assert.equal(g.berries,50);g.win();assert.equal(g.berries,50);assert.equal(g.projectiles.length,0);assert.equal(new Game(g.save()).damage,2);
+ g.damageEnemy(b,b.hp,1);assert(g.buggyDefeated);assert.equal(g.berries,50);g.win();assert.equal(g.berries,50);assert.equal(g.projectiles.length,0);assert.equal(new Game(g.save()).damage,LEVELS[1].damage);
 });
 test('Ordinary punches charge three meter bars without overflowing',()=>{
  const g=fresh('dock');g.updateEnemy=()=>{};g.enemies=g.enemies.slice(0,1);const e=g.enemies[0];
@@ -130,6 +130,41 @@ test('Special requirements, cancellation and death reset are enforced',()=>{
  g.meter=300;g.player.dash=0;g.player.dashCd=0;g.player.airDash=true;g.player.grounded=true;g.player.attackCd=0;assert(g.startSpecial('gatling',{x:500,y:400}));g.die();assert.equal(g.meter,0);assert.equal(g.player.special,null);
 });
 test('Old dropped berries relocate to reachable ground after a map revision',()=>{const save=validSave({version:1,checkpoint:{stage:'dock',id:'dock-a'},satchel:{stage:'dock',x:720,y:430,amount:17}});assert.equal(save.satchel.amount,17);assert(save.satchel.x<700);assert.equal(save.satchel.y,430);});
+test('Captain victories level Luffy up: more damage on every attack, one more health segment',()=>{
+ const g=fresh('circus');
+ assert.equal(g.level,1);assert.equal(g.damage,LEVELS[0].damage);assert.equal(g.maxHp,5);
+ // The gain is a step, not a doubling, and it reaches specials as well as punches.
+ assert(LEVELS[1].damage>LEVELS[0].damage&&LEVELS[1].damage<LEVELS[0].damage*2,'level two is a modest raise');
+ assert(LEVELS[2].damage>LEVELS[1].damage,'level three raises it again');
+ for(let i=1;i<LEVELS.length;i++)assert.equal(LEVELS[i].maxHp,LEVELS[i-1].maxHp+1,'one segment per victory');
+ g.hp=3;g.damageEnemy(g.boss,999,1);
+ assert.equal(g.level,2);assert.equal(g.damage,LEVELS[1].damage);assert.equal(g.maxHp,6);
+ assert.equal(g.hp,4,'the new segment arrives filled without healing the rest');
+ const restored=new Game(g.save());assert.equal(restored.level,2);assert.equal(restored.maxHp,6);assert.equal(restored.hp,6);
+ // A rematch must not level him again.
+ g.player.x=880;g.player.y=430;g.interact();g.damageEnemy(g.boss,999,1);assert.equal(g.level,2);assert.equal(g.maxHp,6);
+ g.transition('mansion');g.damageEnemy(g.boss,999,1);
+ assert(g.kuroDefeated);assert.equal(g.level,3);assert.equal(g.damage,LEVELS[2].damage);assert.equal(g.maxHp,7);
+ // Specials ride the same multiplier.
+ const h=fresh('dock');h.updateEnemy=()=>{};h.enemies=h.enemies.slice(0,1);const e=h.enemies[0];
+ Object.assign(h.player,{x:300,y:430});Object.assign(e,{x:470,y:430,hp:100,maxHp:100});
+ h.buggyDefeated=true;h.applyLevel();h.meter=300;
+ assert(h.startSpecial('bazooka',{x:600,y:404}));advance(h,SPECIALS.bazooka.startup+.02);
+ assert.equal(e.hp,100-SPECIALS.bazooka.damage*LEVELS[1].damage);
+});
+test('Syrup enemies carry more health than their chapter-one counterparts',()=>{
+ const one=fresh('dock'),two=fresh('syrup');
+ const pick=(g,type)=>g.enemies.find(e=>e.type===type);
+ for(const type of ['cutlass','brute','bomber']){
+  const a=pick(one,type),b=pick(two,type);
+  assert(a&&b,type+' appears in both chapters');
+  assert(b.hp>a.hp,type+' is tougher in Syrup Village');
+  assert.equal(b.maxHp,b.hp,'the health bar reads against the spawn value');
+  // Level two damage should leave hits-to-kill close to chapter one at level one.
+  const before=Math.ceil(a.hp/LEVELS[0].damage),after=Math.ceil(b.hp/LEVELS[1].damage);
+  assert(Math.abs(after-before)<=1,type+': '+before+' hits then, '+after+' hits now');
+ }
+});
 test('Invalid save rejection',()=>{assert.equal(validSave({version:99}),null);assert.equal(validSave({version:1,checkpoint:{stage:'circus',id:'x'}}),null);});
 console.log('All challenge-update checks passed.');
 

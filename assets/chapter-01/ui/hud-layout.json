@@ -57,14 +57,18 @@
     ],
     "health": {
       "fill": "hud-health-fill.svg",
-      "grid": "hud-health-grid.svg",
+      "grid": "hud-health-grid-<segments>.svg",
       "rect": [
         64,
         29,
         225,
         14
       ],
-      "segments": 5
+      "segments": [
+        5,
+        6,
+        7
+      ]
     },
     "meter": {
       "fill": "hud-meter-fill.svg",
@@ -125,7 +129,7 @@
     ],
     "glyphs": {
       "file": "hud-glyphs.svg",
-      "order": "0123456789/+-x.",
+      "order": "0123456789/+-x. ABCDEFGHIJKLMNOPQRSTUVWXYZ",
       "cell": [
         6,
         10
@@ -143,17 +147,43 @@
         10
       ]
     },
-    "pistol_upgrade": {
-      "file": "hud-pistol-stamp.svg",
+    "level": {
+      "file": "hud-level-badge.svg",
       "size": [
-        66,
+        52,
         22
       ],
       "screen_anchor": [
         16,
         120
+      ],
+      "value_anchor": [
+        37,
+        6
       ]
     }
+  },
+  "signpost": {
+    "used_by": "play/game.js drawExits",
+    "board": "../props/sign-post.svg",
+    "size": [
+      64,
+      76
+    ],
+    "label_anchor": [
+      32,
+      7
+    ],
+    "arrow": "../props/sign-arrow.svg",
+    "arrow_size": [
+      14,
+      9
+    ],
+    "arrow_anchor": [
+      32,
+      17
+    ],
+    "foot_offset": 72
   },
   "boss_console": {
     "used_by": "play/game.js, drawn 1:1 in 960x540 screen space",
