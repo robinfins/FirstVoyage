@@ -170,14 +170,47 @@
         22
       ],
       "screen_anchor": [
-        80,
-        120
+        16,
+        146
       ],
       "fill_rect": [
         78,
         7,
         64,
         8
+      ],
+      "screen_anchor_no_level_badge": [
+        16,
+        120
+      ]
+    },
+    "left_gutter": 16,
+    "left_gutter_note": "Console, level badge, Gear 2 badge and meat panel all anchor here, so the overlay keeps one straight edge down the side of the screen.",
+    "meat": {
+      "icon": "meat.svg",
+      "icon_size": [
+        48,
+        38
+      ],
+      "panel_size": [
+        142,
+        60
+      ],
+      "screen_anchor": [
+        16,
+        466
+      ],
+      "icon_offset": [
+        8,
+        8
+      ],
+      "count_anchor": [
+        70,
+        15
+      ],
+      "prompt_anchor": [
+        70,
+        31
       ]
     }
   },

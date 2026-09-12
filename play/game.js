@@ -11,7 +11,7 @@ let music=true,scoreTrack=null;
 try{saved=PirateGame.validSave(JSON.parse(localStorage.getItem(SAVE_KEY)));}catch{saveAvailable=false;}
 game=new Game(saved);game.events=[];
 // Bump when regenerated art must defeat a cached copy; script ?v= tags do not cover asset files.
-const ASSET_V='meat5';
+const ASSET_V='align1';
 function load(key,path){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>resolve(key);im.src='../assets/chapter-01/'+path+'?v='+ASSET_V;});}
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
@@ -346,8 +346,12 @@ function drawProjectiles(){for(const q of game.projectiles){const x=q.x-camera.x
  else{ctx.fillStyle='#ffb34c77';ctx.beginPath();ctx.arc(0,0,q.radius,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#ffdd86';ctx.lineWidth=3;ctx.stroke();}
  ctx.restore();}}
 // Console geometry mirrors assets/chapter-01/ui/hud-layout.json; panel-relative, drawn 1:1.
-const HUD={x:16,y:14,w:300,h:100,health:[64,29,225,14],meter:[64,51,73,10],meterPitch:76,
- dash:[64,67,187,4],valueRight:289,nameRow:10,lockGroup:[162,77,104,18],coin:[110,8],berries:[128,10],stamp:[16,120,56,22]};
+const HUD_X=16;                                          // shared left gutter for every overlay
+const HUD={x:HUD_X,y:14,w:300,h:100,health:[64,29,225,14],meter:[64,51,73,10],meterPitch:76,
+ dash:[64,67,187,4],valueRight:289,nameRow:10,lockGroup:[162,77,104,18],coin:[110,8],berries:[128,10],
+ // Everything in the left column shares HUD.x, so the console, the badges under it and the meat
+ // panel present one straight gutter down the side of the screen.
+ stamp:[HUD_X,120,56,22],gear:[HUD_X,146,150,22],meat:[HUD_X,466,142,60]};
 const BOSS={x:200,y:484,w:560,h:46,bar:[16,24,528,14],phase:[540,8]};
 let bossTrail=1;
 const GLYPH_ORDER='0123456789/+-x. ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -382,9 +386,10 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
  }
  image('hud-coin',ox+HUD.coin[0],oy+HUD.coin[1],14,14);glyphs(game.berries,ox+HUD.berries[0],oy+HUD.berries[1]);
  if(game.level>1){image('hud-level-badge',...HUD.stamp);glyphs(game.level,HUD.stamp[0]+41,HUD.stamp[1]+6);}
- ctx.fillStyle='#0b1629ee';ctx.fillRect(16,466,142,60);ctx.strokeStyle='#ae8851';ctx.strokeRect(16.5,466.5,141,59);
- image('meat',24,474,48,38);glyphs(game.heals+'/3',86,481);glyphs('F EAT',86,497,'left',8);
- if(game.healTime){ctx.fillStyle='#eeb76b';ctx.fillRect(22,519,128*(1-game.healTime/.65),3);}
+ const [kx,ky,kw,kh]=HUD.meat;
+ ctx.fillStyle='#0b1629ee';ctx.fillRect(kx,ky,kw,kh);ctx.strokeStyle='#ae8851';ctx.strokeRect(kx+.5,ky+.5,kw-1,kh-1);
+ image('meat',kx+8,ky+8,48,38);glyphs(game.heals+'/3',kx+70,ky+15);glyphs('F EAT',kx+70,ky+31,'left',8);
+ if(game.healTime){ctx.fillStyle='#eeb76b';ctx.fillRect(kx+6,ky+53,(kw-12)*(1-game.healTime/.65),3);}
  if(game.boss&&game.bossStarted){const [fx,fy,fw,fh]=BOSS.bar;
   image('hud-boss-frame',BOSS.x,BOSS.y,BOSS.w,BOSS.h);if(game.boss.kind==='kuro'){ctx.fillStyle='#0c1629';ctx.fillRect(BOSS.x+12,BOSS.y+4,350,18);text('CAPTAIN KURO',BOSS.x+20,BOSS.y+17,12,'#e6c587');}
   bar('hud-boss-trail',BOSS.x+fx,BOSS.y+fy,fw,bossTrail,fh);
@@ -393,7 +398,9 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
   glyphs(game.boss.phase,BOSS.x+BOSS.phase[0],BOSS.y+BOSS.phase[1]);
  }
  if(fullscreen()&&started&&game.messageTime>0)plate(game.message,480,466);
- if(game.kuroDefeated){const p=game.player,gx=80,gy=120;
+ // The badge sits under the level stamp when there is one, and takes its row when there is not,
+ // so it never floats out from the gutter the rest of the overlay keeps.
+ if(game.kuroDefeated){const p=game.player,gx=HUD.gear[0],gy=game.level>1?HUD.gear[1]:HUD.stamp[1];
   // Dim the badge when there is not a full bar to spend, the way Gatling dims before its unlock.
   const usable=p.gear>0||p.gearIntro>0||game.meter>=100;
   ctx.save();ctx.globalAlpha=usable?1:.55;image('hud-gear-badge',gx,gy,150,22);ctx.restore();
