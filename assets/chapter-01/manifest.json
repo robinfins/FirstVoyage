@@ -110,6 +110,18 @@
       "sha256": "f3f72684558c1433ca6c79b8f6f2c7b9b9688b255fbbb7ce26dc4defe980e029"
     },
     {
+      "id": "sunny-rails-foreground",
+      "file": "layers/sunny-rails-foreground.png",
+      "size": [
+        1672,
+        941
+      ],
+      "mode": "RGBA",
+      "has_transparent_pixels": true,
+      "status": "preserved-source",
+      "sha256": "f36a926984b38a871a2bd6a69bc398216d013aa87b7a94c92c3c31f3dd9f7c30"
+    },
+    {
       "id": "sunny-ship-layer",
       "file": "layers/sunny-ship-layer.png",
       "size": [
@@ -251,12 +263,12 @@
       "id": "ocean-wave-cycle",
       "file": "cleaned/ocean-wave-cycle.png",
       "size": [
-        768,
-        256
+        1536,
+        640
       ],
       "mode": "RGBA",
       "has_transparent_pixels": true,
-      "sha256": "ca7bcd24c50fcdf14bd8186c262f798b5c9e336ce14736dcabf6d79f57d09cf6"
+      "sha256": "edfdbfd1ce212998cc4f808f770670e5caeb59e87a6827d4879b5df707f74f92"
     }
   ],
   "sprites": {
@@ -2360,35 +2372,35 @@
         [
           0,
           0,
-          768,
-          64
+          1536,
+          160
         ],
         [
           0,
-          64,
-          768,
-          64
+          160,
+          1536,
+          160
         ],
         [
           0,
-          128,
-          768,
-          64
+          320,
+          1536,
+          160
         ],
         [
           0,
-          192,
-          768,
-          64
+          480,
+          1536,
+          160
         ]
       ],
       "cell_size": [
-        768,
-        64
+        1536,
+        160
       ],
       "pivot": [
         0,
-        26
+        64
       ],
       "base_color": "#082740",
       "source_registration": [

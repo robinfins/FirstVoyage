@@ -11,7 +11,7 @@ let music=true,scoreTrack=null;
 try{saved=PirateGame.validSave(JSON.parse(localStorage.getItem(SAVE_KEY)));}catch{saveAvailable=false;}
 game=new Game(saved);game.events=[];
 // Bump when regenerated art must defeat a cached copy; script ?v= tags do not cover asset files.
-const ASSET_V='zoro-crest3';
+const ASSET_V='sea1';
 function load(key,path,attempt=0){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>{if(attempt<2)setTimeout(()=>resolve(load(key,path,attempt+1)),250*(attempt+1));else resolve(key);};im.src='../assets/chapter-01/'+path+'?v='+ASSET_V;});}
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
@@ -206,16 +206,27 @@ function plate(label,x,y,color='#f2cf83'){const width=label.length*6.7+18;ctx.fi
 // Camera factors follow the CHAPTER_01 layer contract: distant sea 0.22, foreground surf 1.08.
 // The water is a finite strip, so it is mirror-tiled; alternate copies flip, and a mirrored join
 // is continuous whatever the source edges do.
-const SEA_SPAN=1200;
+// World units per source pixel, one number per layer. Uniform by construction, so the waves
+// cannot end up stretched the way they were -- the strip was drawn 0.78x across but 0.54x down.
+// Both are well under 1, so with ZOOM on top the water is downscaled rather than magnified; it
+// used to be blown up 2.1x from a strip that had itself been saved at a quarter of the
+// resolution it was cleaned at. Distance sets the order: the rear sea is further away, so its
+// waves are drawn smaller than the foreground surf's.
+const SEA_SCALE={front:.4167,rear:.28};
 function sea(y,rear=false){const i=Math.floor(game.time*4+(rear?0:2))%4;
  const drift=Math.sin(game.time*(rear?.19:.23))*3-camera.x*(rear?.22:1.08);
- const height=rear?40:86,top=Math.round(y-26/64*height),base=-100+drift;
+ // Cell and pivot come from the registration, so a regenerated strip of a different size still
+ // lands on the waterline without a matching edit here.
+ const r=PACK.props['ocean-wave-cycle'],s=SEA_SCALE[rear?'rear':'front'];
+ const span=Math.round(r.cell_size[0]*s),height=Math.round(r.cell_size[1]*s);
+ const top=Math.round(y-r.pivot[1]*s),base=-100+drift;
  const im=images['ocean-wave-cycle'];
  if(im){const cell=PACK.frames['ocean-wave-cycle'][i];
-  for(let t=Math.floor(-base/SEA_SPAN);t<=Math.floor((VIEW_W-base)/SEA_SPAN);t++){
-   const x=Math.round(base+t*SEA_SPAN);
-   if(t&1){ctx.save();ctx.translate(x+SEA_SPAN,top);ctx.scale(-1,1);ctx.drawImage(im,...cell,0,0,SEA_SPAN,height);ctx.restore();}
-   else ctx.drawImage(im,...cell,x,top,SEA_SPAN,height);
+  // A smaller tile simply draws more copies, so the sea keeps filling the view on its own.
+  for(let t=Math.floor(-base/span);t<=Math.floor((VIEW_W-base)/span);t++){
+   const x=Math.round(base+t*span);
+   if(t&1){ctx.save();ctx.translate(x+span,top);ctx.scale(-1,1);ctx.drawImage(im,...cell,0,0,span,height);ctx.restore();}
+   else ctx.drawImage(im,...cell,x,top,span,height);
   }
  }
  ctx.fillStyle='#082740';ctx.fillRect(0,top+height-1,960,540);

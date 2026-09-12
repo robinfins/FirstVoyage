@@ -19,7 +19,11 @@ for name,cell,pivot,source_pivot in [('sunny-flag-cycle',(512,448),(16,64),(50,2
 # Actual crest intervals, rather than the incorrect equal-height original grid.
 src=np.array(Image.open(BASE/'layers/ocean-wave-cycle.png').convert('RGBA'))
 bands=[(152,266),(380,516),(620,779),(871,1018)]
-w,h=768,64;atlas=Image.new('RGBA',(w,h*4));audits=[]
+# Stored at the size the crest extraction actually works at. This used to save a NEAREST
+# downscale to 768x64, throwing away three quarters of the pixels, which the game then
+# magnified back up 2x to draw. The buffer below is already 1536x160, so keeping it costs
+# nothing but bytes and leaves the pipeline with no resampling step at all.
+w,h=1536,160;atlas=Image.new('RGBA',(w,h*4));audits=[]
 for i,(top,bottom) in enumerate(bands):
  a=src[top:bottom].copy();g=a[:,:,1].astype('float32')
  detail=g-cv2.GaussianBlur(g,(0,0),3)
@@ -45,11 +49,11 @@ for i,(top,bottom) in enumerate(bands):
  base=np.array([8,39,64])
  for y in range(102,160):
   blend=(y-102)/57;result[y,:,:3]=np.round(result[y,:,:3]*(1-blend)+base*blend).astype('uint8')
- im=Image.fromarray(result).resize((w,h),Image.Resampling.NEAREST)
+ im=Image.fromarray(result)
  im.paste((8,39,64,255),(0,h-1,w,h))
  atlas.alpha_composite(im,(0,i*h));folder=OUT/'ocean-wave-cycle';folder.mkdir(exist_ok=True);im.save(folder/f'{i:02}.png')
  audits.append({'source_band':[0,top,1536,bottom-top],'source_surface_median':top+median})
-atlas.save(OUT/'ocean-wave-cycle.png');records['ocean-wave-cycle']={'file':'cleaned/ocean-wave-cycle.png','frames':[[0,i*h,w,h] for i in range(4)],'cell_size':[w,h],'pivot':[0,26],'base_color':'#082740','source_registration':audits,'stage_scope':['sunny']}
+atlas.save(OUT/'ocean-wave-cycle.png');records['ocean-wave-cycle']={'file':'cleaned/ocean-wave-cycle.png','frames':[[0,i*h,w,h] for i in range(4)],'cell_size':[w,h],'pivot':[0,64],'base_color':'#082740','source_registration':audits,'stage_scope':['sunny']}
 (OUT/'environment-registration.json').write_text(json.dumps(records,indent=2)+'\n')
 proof=Image.new('RGBA',atlas.size,(40,65,76,255));proof.alpha_composite(atlas);proof.convert('RGB').save(OUT/'ocean-review.jpg')
 print('Registered flag hoists, checkpoint bases and four wave crests. Removed wave haze.')

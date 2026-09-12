@@ -3,7 +3,9 @@ from pathlib import Path
 from PIL import Image
 import json,hashlib
 ROOT=Path(__file__).resolve().parent.parent;BASE=ROOT/'assets/chapter-01'
-sources={p.stem:str(p.relative_to(BASE)) for folder in ['characters','layers','props'] for p in sorted((BASE/folder).glob('*.png'))}
+# as_posix, not str: on Windows str() yields backslashes, which end up in pack.js as asset
+# URLs the browser cannot load.
+sources={p.stem:p.relative_to(BASE).as_posix() for folder in ['characters','layers','props'] for p in sorted((BASE/folder).glob('*.png'))}
 files=dict(sources);frames={};entries=[]
 for key,file in sources.items():
  with Image.open(BASE/file) as im:

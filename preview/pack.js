@@ -9,6 +9,7 @@ const PACK = {
     "distant-islands": "layers/distant-islands.png",
     "ocean-wave-cycle": "cleaned/ocean-wave-cycle.png",
     "orange-town-buildings": "layers/orange-town-buildings.png",
+    "sunny-rails-foreground": "layers/sunny-rails-foreground.png",
     "sunny-ship-layer": "layers/sunny-ship-layer.png",
     "sunset-sky": "layers/sunset-sky.png",
     "checkpoint-snail": "cleaned/checkpoint-snail.png",
@@ -86,6 +87,7 @@ const PACK = {
     "distant-islands": "layers/distant-islands.png",
     "ocean-wave-cycle": "layers/ocean-wave-cycle.png",
     "orange-town-buildings": "layers/orange-town-buildings.png",
+    "sunny-rails-foreground": "layers/sunny-rails-foreground.png",
     "sunny-ship-layer": "layers/sunny-ship-layer.png",
     "sunset-sky": "layers/sunset-sky.png",
     "checkpoint-snail": "props/checkpoint-snail.png",
@@ -362,26 +364,26 @@ const PACK = {
       [
         0,
         0,
-        768,
-        64
+        1536,
+        160
       ],
       [
         0,
-        64,
-        768,
-        64
+        160,
+        1536,
+        160
       ],
       [
         0,
-        128,
-        768,
-        64
+        320,
+        1536,
+        160
       ],
       [
         0,
-        192,
-        768,
-        64
+        480,
+        1536,
+        160
       ]
     ],
     "orange-town-buildings": [
@@ -390,6 +392,14 @@ const PACK = {
         0,
         2126,
         740
+      ]
+    ],
+    "sunny-rails-foreground": [
+      [
+        0,
+        0,
+        1672,
+        941
       ]
     ],
     "sunny-ship-layer": [
@@ -2832,35 +2842,35 @@ const PACK = {
         [
           0,
           0,
-          768,
-          64
+          1536,
+          160
         ],
         [
           0,
-          64,
-          768,
-          64
+          160,
+          1536,
+          160
         ],
         [
           0,
-          128,
-          768,
-          64
+          320,
+          1536,
+          160
         ],
         [
           0,
-          192,
-          768,
-          64
+          480,
+          1536,
+          160
         ]
       ],
       "cell_size": [
-        768,
-        64
+        1536,
+        160
       ],
       "pivot": [
         0,
-        26
+        64
       ],
       "base_color": "#082740",
       "source_registration": [

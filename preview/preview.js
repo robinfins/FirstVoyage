@@ -21,10 +21,13 @@ function part(key,index,x,y,w,h,context=ctx){const im=images[key],r=PACK.frames[
 function ocean(t,cam,waterline,foreground){
   const key='ocean-wave-cycle',r=PACK.props[key];
   const i=Math.floor(t*4)%4;
-  const y=foreground?waterline-r.pivot[1]:224-r.pivot[1]*.45;
-  const height=foreground?64:29;
+  // Scale per layer, applied to the registration's own cell and pivot. Reading the pivot raw
+  // only worked while the strip happened to be 64 rows tall; it is now stored at full size.
+  const s=foreground?.5:.23;
+  const span=Math.round(r.cell_size[0]*s),height=Math.round(r.cell_size[1]*s);
+  const y=Math.round((foreground?waterline:224)-r.pivot[1]*s);
   const drift=Math.round(Math.sin(t*.24)*9-cam*.08);
-  part(key,i,-64+drift,y,768,height);
+  part(key,i,-64+drift,y,span,height);
   // Exact same opaque color as the cleaned strip's bottom edge.
   ctx.fillStyle=r.base_color;ctx.fillRect(0,Math.floor(y+height)-1,640,360-Math.floor(y+height)+1);
 }

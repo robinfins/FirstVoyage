@@ -84,7 +84,7 @@ Nothing below is required to play — the game never requests it — so a lean d
 | `assets/concepts/` | 7.3 MB | Concept art, embedded in `README.md` only |
 | `preview/`, `play/qa-chapter.html`, `play/art-review.html` | small | Art-study and QA tools |
 
-The real win is the fourteen PNGs over 1 MB. They are authored well above the size they are drawn
+The ocean strip is the deliberate exception: `cleaned/ocean-wave-cycle.png` was grown from 163 KB to 623 KB on purpose, because it was being stored at a quarter of the resolution it was cleaned at and magnified back up at runtime. Do not "optimise" it back down. The real win is the fourteen PNGs over 1 MB. They are authored well above the size they are drawn
 at — the Sunny ship layer is 1672 px wide and drawn at 1505 — and are full-colour PNG-32. Resizing
 to display resolution and quantising to a palette would plausibly take the payload well under
 10 MB without a visible difference at this art scale. That has not been done yet.

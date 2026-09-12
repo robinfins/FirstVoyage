@@ -74,4 +74,28 @@ const runs = [...consoleSvg.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)" he
 const widest = Math.max(...runs.map(r => r.w));
 assert(widest > 0, 'the console should draw a medallion row through the crest centre');
 assert(HUD.crestSize >= widest, `crest (${HUD.crestSize}px) must cover the medallion (${widest}px)`);
-console.log('PASS: HUD overlays share one left gutter, the badge row pairs up, the Zoro crest covers the medallion, and game.js agrees with hud-layout.json.');
+// The sea used to be drawn 0.78x across but 0.54x down from a strip saved at a quarter of the
+// resolution it was cleaned at -- stretched and magnified 2.1x at once. Both halves of that are
+// easy to reintroduce by editing one number, so pin the shape of the fix rather than the values.
+const seaLiteral = hudSrc.match(/const SEA_SCALE=\{[^}]*\};/);
+assert(seaLiteral, 'game.js should declare SEA_SCALE');
+const SEA = JSON.parse(vm.runInNewContext(seaLiteral[0] + '\nJSON.stringify(SEA_SCALE)'));
+const zoom = Number(hudSrc.match(/const ZOOM=([\d.]+)/)[1]);
+for (const layer of ['front', 'rear']) {
+  assert.equal(typeof SEA[layer], 'number',
+    `SEA_SCALE.${layer} should be one number, so the tile cannot be given a width and a height that disagree`);
+  // World units per source pixel, times the world zoom, is screen pixels per source pixel.
+  const onScreen = SEA[layer] * zoom;
+  assert(onScreen <= 1,
+    `the ${layer} sea is magnified ${onScreen.toFixed(2)}x on screen; it should be drawn at or below one screen pixel per source pixel`);
+}
+assert(SEA.rear < SEA.front, 'the distant sea should be drawn smaller than the foreground surf');
+const ocean = JSON.parse(fs.readFileSync(path.join(__dirname,
+  '../assets/chapter-01/cleaned/environment-registration.json'), 'utf8'))['ocean-wave-cycle'];
+assert(Array.isArray(ocean.cell_size) && Array.isArray(ocean.pivot), 'the ocean needs a registration');
+assert(ocean.pivot[1] > 0 && ocean.pivot[1] < ocean.cell_size[1],
+  'the waterline pivot should sit inside the wave strip; sea() places the crest from it');
+// A tile has to cover half the view at least, or mirrored joins land repeatedly across the screen.
+assert(ocean.cell_size[0] * SEA.front > 960 / zoom / 2,
+  'the foreground wave tile is too narrow to cover the view');
+console.log('PASS: HUD overlays share one left gutter, the badge row pairs up, the Zoro crest covers the medallion, the sea is drawn unstretched and unmagnified, and game.js agrees with hud-layout.json.');

@@ -34,7 +34,7 @@ These remain key poses. Additional contact/passing frames and attack in-betweens
 | Flag | [Registered flag](cleaned/sunny-flag-cycle.png) | Sunny mast |
 | Checkpoints | [Registered snail](cleaned/checkpoint-snail.png) | Sunny deck, dock A, streets B |
 
-The four ocean phases use actual crest bands rather than equal slices of the source image. They are aligned to a common waterline, have transparent pixels above the crests, and join an opaque `#082740` base below. Each frame is 768 × 64. Finite horizontal drift keeps its edges outside the preview; this is not an endlessly tileable ocean.
+The four ocean phases use actual crest bands rather than equal slices of the source image. They are aligned to a common waterline, have transparent pixels above the crests, and join an opaque `#082740` base below. Each frame is 1536 × 160 — exactly the buffer the crest extraction works in, so the cleanup no longer resamples at all. It used to save a NEAREST downscale to 768 × 64, discarding three quarters of the pixels that the renderer then magnified back up. Finite horizontal drift keeps its edges outside the preview; this is not an endlessly tileable ocean.
 
 The flag uses 512 × 448 cells with hoist pivot (16, 64). The snail uses 576 × 704 cells with ground pivot (288, 656). [Environment registration](cleaned/environment-registration.json) specifies exact rectangles and pivots.
 
