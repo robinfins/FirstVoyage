@@ -218,35 +218,41 @@ CREST=48
 def zoro_crest():
  c=CREST//2
  out=[disc(c,c,24,EDGE,.95),disc(c,c,22,RIM),disc(c,c,20,'#17263f')]
- # Not three plain rings: each earring is a small hoop through the ear carrying a long gold drop,
- # narrow where it hangs and swelling to a rounded tip low down. The drop owns the silhouette, so
- # it gets three quarters of the height and the hoop stays subordinate to it.
+ # Not three plain rings: each earring is a small open hoop through the ear carrying a long gold
+ # drop, thin for most of its length and swelling only near the rounded tip. Set on a diagonal
+ # rather than in a row -- three identical shapes side by side read as a repeat, while a diagonal
+ # gives the medallion a direction and fills a circle better than a straight line does.
+ PITCH,STAGGER,TOP_Y=9,3,11
+ HOOPS=[(c+(i-1)*PITCH,TOP_Y+i*STAGGER) for i in range(3)]
+ HOOP_R,HOOP_HOLE,HANG=3.4,2.0,3
+ TOP_W,BULB_R,BULB_DROP=.5,2.4,17
+ def profile(top):
+  """Half-width per row: a long straight taper, then a circular tip. Tabling it by hand gives
+  flat sides and a squared-off end, which reads as a peg rather than something hanging."""
+  rows=[]
+  for y in range(top,CREST):
+   d=y-top-BULB_DROP
+   w=TOP_W+(BULB_R-TOP_W)*(y-top)/BULB_DROP if d<=0 else (BULB_R*BULB_R-d*d)**.5 if d<BULB_R else 0
+   if w<.4: break
+   rows.append(int(w+.5))
+  return rows
  # The drop hangs from the hoop's lower arc, never through it: start it any higher and it plugs
  # the hole, which is the whole reason the hoop reads as a ring rather than a bead.
- CXS=(12,24,36); HOOP_Y,HOOP_R,HOOP_HOLE=15,4.3,2.4
- TOP,BULB_Y,BULB_R,TOP_W=18,31,4.2,1.0
- # Half-width per row. A straight-sided drop reads as a peg, so the taper is computed rather than
- # tabled: linear from the hang point down to the bulb centre, circular below it for a round tip.
- DROP=[]
- for y in range(TOP,CREST):
-  w=TOP_W+(BULB_R-TOP_W)*(y-TOP)/(BULB_Y-TOP) if y<=BULB_Y else (BULB_R*BULB_R-(y-BULB_Y)**2)**.5 if abs(y-BULB_Y)<BULB_R else 0
-  if w<.6: break
-  DROP.append(int(round(w)))
+ DROPS=[(cx,hy+HANG,profile(hy+HANG)) for cx,hy in HOOPS]
  def hoop(x,y,ox=0,oy=0):
-  for cx in CXS:
-   d=(x-ox-cx)**2+(y-oy-HOOP_Y)**2
+  for cx,hy in HOOPS:
+   d=(x-ox-cx)**2+(y-oy-hy)**2
    if d<=HOOP_R*HOOP_R: return d>HOOP_HOLE*HOOP_HOLE
   return False
  def drop(x,y):
-  i=y-TOP
-  if not 0<=i<len(DROP): return None
-  for cx in CXS:
-   if abs(x-cx)<=DROP[i]: return x-cx,DROP[i]
+  for cx,top,rows in DROPS:
+   i=y-top
+   if 0<=i<len(rows) and abs(x-cx)<=rows[i]: return x-cx,rows[i]
   return None
  def ink(x,y): return hoop(x,y) or drop(x,y) is not None
  # Outline the outer silhouette only. Dilating into the hoop's hole as well eats it from every
- # side at once and leaves a dark cross instead of a ring; five pixels of hole cannot spare any.
- def in_hoop_disc(x,y): return any((x-cx)**2+(y-HOOP_Y)**2<=HOOP_R*HOOP_R for cx in CXS)
+ # side at once and leaves a dark cross instead of a ring; a few pixels of hole cannot spare any.
+ def in_hoop_disc(x,y): return any((x-cx)**2+(y-hy)**2<=HOOP_R*HOOP_R for cx,hy in HOOPS)
  px={}
  for y in range(CREST):
   for x in range(CREST):
@@ -255,10 +261,16 @@ def zoro_crest():
     off,w=d
     # A gleam down each drop, inset one pixel from the left edge the way polished metal catches
     # the light in the reference art, with the far side rolling into shadow.
-    px[(x,y)]=EAR_HI if -w<off<=-w+2 else EAR_LO if off>=w-(1 if w>2 else 0) else EAR
+    px[(x,y)]=EAR_HI if -w<off<=-w+1 else EAR_LO if off>=w-(1 if w>2 else 0) else EAR
    elif hoop(x,y):
     px[(x,y)]=EAR_HI if not hoop(x,y,1,1) else EAR_LO if not hoop(x,y,-1,-1) else EAR
    elif not in_hoop_disc(x,y) and any(ink(x+ox,y+oy) for ox in(-1,0,1) for oy in(-1,0,1)): px[(x,y)]=EAR_EDGE
+ # The medallion is round and a diagonal emblem is not, so its corners are the whole risk here.
+ # Fail the build rather than ship an earring clipped by the rim: gold has to stay inside the
+ # well, and the outline may sit on the rim -- as the straw hat's does -- but not cross it.
+ reach=lambda keep: max(((x-c)**2+(y-c)**2)**.5 for (x,y),v in px.items() if keep(v))
+ assert reach(lambda v:v!=EAR_EDGE)<=20, 'crest gold leaves the medallion well'
+ assert reach(lambda v:True)<=22, 'crest outline crosses the medallion rim'
  for y in range(CREST):                                   # pack the emblem back into runs
   x=0
   while x<CREST:
