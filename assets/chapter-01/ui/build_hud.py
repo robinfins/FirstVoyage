@@ -154,14 +154,20 @@ IRON='#474350'; IRON_HI='#6f6a7c'; NAIL='#cdc6b2'
 # Widest label is CIRCUS: 6 glyphs at advance 10 is 56px, and the straps eat 20px of the board.
 SIGN_W,SIGN_H,BOARD_H=84,76,30
 def signpost():
- c=SIGN_W//2                                                     # post and mound follow the centre
- out=[rect(c-6,BOARD_H-2,12,SIGN_H-BOARD_H-4,WOOD_EDGE)]         # post silhouette
- out+=[rect(c-5,BOARD_H-2,10,SIGN_H-BOARD_H-5,WOOD),rect(c-5,BOARD_H-2,2,SIGN_H-BOARD_H-5,WOOD_HI),
-       rect(c+3,BOARD_H-2,2,SIGN_H-BOARD_H-5,WOOD_LO)]
- for y in range(BOARD_H+4,SIGN_H-8,7): out.append(rect(c-3,y,6,1,WOOD_LO))  # grain
- # earth mound at the foot, so the post is planted rather than floating
- out+=[rect(c-14,SIGN_H-9,28,5,'#4a3b28'),rect(c-12,SIGN_H-10,24,2,'#5e4a31'),
-       rect(c-10,SIGN_H-11,8,1,'#6d5838'),rect(c+2,SIGN_H-11,7,1,'#6d5838')]
+ c,top=SIGN_W//2,BOARD_H-2                                       # post follows the centre
+ # The post runs the whole way to the bottom row. The sign is drawn with its bottom edge on the
+ # ground line, so empty rows here read as the post hovering above the floor.
+ out=[rect(c-6,top,12,SIGN_H-top,WOOD_EDGE)]                     # post silhouette
+ out+=[rect(c-5,top,10,SIGN_H-top-1,WOOD),rect(c-5,top,2,SIGN_H-top-1,WOOD_HI),
+       rect(c+3,top,2,SIGN_H-top-1,WOOD_LO)]
+ for y in range(BOARD_H+4,SIGN_H-6,7): out.append(rect(c-3,y,6,1,WOOD_LO))  # grain
+ # Angled braces at the foot instead of an earth mound: carpentry reads correctly on planking,
+ # stone and the Sunny's grass alike, where a pile of dirt would not.
+ for i in range(7):
+  hgt=7-i
+  out.append(rect(c-7-i,SIGN_H-hgt,1,hgt,WOOD if i<4 else WOOD_LO))
+  out.append(rect(c+6+i,SIGN_H-hgt,1,hgt,WOOD_LO))
+ out.append(rect(c-13,SIGN_H-2,26,2,'#000000',.22))              # contact shadow
  out+=[rect(0,0,SIGN_W,BOARD_H,WOOD_EDGE)]                        # board silhouette
  out+=[rect(1,1,SIGN_W-2,BOARD_H-2,WOOD),rect(1,1,SIGN_W-2,2,WOOD_HI),rect(1,BOARD_H-4,SIGN_W-2,3,WOOD_LO)]
  for y in (8,15,22): out.append(rect(3,y,SIGN_W-6,1,WOOD_LO))     # plank seams

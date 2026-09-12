@@ -1,4 +1,4 @@
-# Straw Hat: Grand Line — game overview
+# First Voyage — game overview
 
 Version 0.1 · Proposed direction · 10 September 2026
 

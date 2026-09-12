@@ -1,12 +1,13 @@
-# Straw Hat: Grand Line
+# First Voyage
 
-Working title · A One Piece fan-game concept
+A One Piece fan-game concept
 
 A side-scrolling action platformer starring pre-timeskip Luffy: explore hostile islands, learn demanding boss fights, recover lost treasure, and return to the Thousand Sunny to prepare for the next voyage.
 
 ## Start here
 
 - **[Play First Voyage](play/index.html)** — the playable Sunny → Orange Town → Buggy prototype, now with longer parkour routes, pursuing pirates, impact bombs and a closer camera. Open through the local server at `http://127.0.0.1:8766/play/`.
+- **[Hosting notes](docs/HOSTING.md)** — putting the build on the web, what a visitor downloads, and what the four-digit gate does and does not do.
 - **[Playable build notes](docs/PLAYABLE_PROTOTYPE.md)** — controls, route, saving, implemented systems and current limits.
 
 - **[Cleanup checklist](docs/NEXT_SESSION.md)** — completed fixes for sprites, Sunny ocean, flag, and checkpoints.

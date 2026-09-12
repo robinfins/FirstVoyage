@@ -24,8 +24,9 @@ python3 -m http.server 8766 --bind 127.0.0.1
 | Esc | Pause / resume; in fullscreen it leaves fullscreen and pauses |
 | Fullscreen button | Fill the screen; also in the pause menu |
 | Lock cursor button | Capture the mouse inside the game; also in the pause menu |
+| Music button | Toggle the score; Sound toggles the effect blips separately |
 
-A dash has a short cooldown and avoids damage while active. You get one dash in the air, refreshed by landing. Each click is one punch. Jumping uses a short input buffer and coyote window. Moving away from the tab pauses the game. Sound effects can be enabled with the Sound button.
+A dash has a short cooldown and avoids damage while active. You get one dash in the air, refreshed by landing. Each click is one punch. Jumping uses a short input buffer and coyote window. Moving away from the tab pauses the game. Music and sound effects both start on; the Music and Sound buttons toggle them separately.
 
 ## Special-move meter
 
@@ -61,6 +62,46 @@ The level is derived from the permanent victory flags rather than stored separat
 
 Syrup Village is gated behind Buggy, so it is always played at level 2 or better. Its Black Cat crew therefore carries half again the chapter-one health — cutlass 8, bruiser 12, powder runner 6 — which keeps hits-to-kill within one hit of the chapter-one encounters at level 1. Chapter-one enemies are untouched. The scale is per stage via `enemyHp`, and each enemy remembers its spawn health so its bar reads correctly.
 
+## Score
+
+`play/music.js` synthesises three original looping cues with Web Audio — no audio files and no libraries, so they cost nothing to ship and loop seamlessly. They are written in a sea-shanty / adventure idiom; none of them quote an existing One Piece theme.
+
+| Cue | Where | Character |
+|---|---|---|
+| `hub` | Thousand Sunny | 3/4 waltz in D major, 78 BPM, oom-pah-pah bass, no percussion |
+| `stage` | Dock, rooftops, Syrup Village | 4/4 march in D minor, 134 BPM, dotted melody over a walking bass |
+| `boss` | Only while a captain is up | 4/4 in D phrygian, 168 BPM, driving eighths and off-beat stabs |
+
+The battle cue belongs to the fight rather than the room. Walking into an arena keeps the march playing, so there is no change until the player crosses the trigger that raises the boss health bar — then it swaps, and the two land together. When the captain falls the battle cue ends and the calm cue takes the aftermath, leaving the victory fanfare room to sound. Re-entering a cleared arena stays calm; taking a rematch brings the battle cue back. Both arenas follow the same rule.
+
+Each cue is eight bars on a sixteenth-note grid. Parts are written as `[note, sixteenths]` runs and flattened to a step table at load; a part shorter than the loop tiles to fill it, which is how one bar of drums covers the whole progression. A part can carry `from: 2`, which holds it back until the intensity rises — the battle cue keeps a sixteenth-note counter-line for boss phase two, worth about a sixth more output level.
+
+Timing uses a lookahead scheduler rather than per-note timers: a 25ms interval queues every step landing inside the next 100ms against `ctx.currentTime`, so note starts are sample-accurate and never drift with the frame rate. Track changes cross-fade through silence over about half a second, so two keys never sound at once. Menus duck the score to 30% instead of cutting it.
+
+Music and effects share one `AudioContext`, created on the first user gesture because browsers refuse to start audio before one. Both are on by default and each has its own toggle, so either can be silenced without the other.
+
+`tools/verify_music.cjs` checks that every note parses and lands in a usable range, that each part tiles the loop exactly, that the phase-two layer exists and has notes, and that note density rises from hub to stage to boss. It also mirrors the cue-selection rule against real `Game` state, covering the approach, the trigger, phase two, the captain's death, a cleared arena and a rematch, in both arenas.
+
+## Sound effects
+
+`play/sfx.js` synthesises every cue the same way — no audio files. Each is layered like a recorded effect: a transient to mark the moment, a body for weight, a tail to let it breathe. Luffy's attacks lean on pitch glides rather than flat tones, because a limb that stretches should sound like it stretches.
+
+| Cue | Built from |
+|---|---|
+| Punch (the swing) | Air sweeping up 520 to 1900 Hz, an elastic twang gliding up, a low stretch underneath |
+| Punch (the connect) | Tight high crack, a 290 to 70 Hz thump for weight, a short square bite |
+| Dash | Low push-off, then resonant air rushing 380 to 2600 Hz, with a reversed tail behind it |
+| Gum-Gum Bazooka | Wind-up: a rising sawtooth stretch over 0.55s. Fire: 180 to 32 Hz drop, lowpassed blast, crack on top |
+| Gum-Gum Gatling | Rev: three rising blips. Each of the eighteen pulses: a dry 35ms crack and a short 330 to 90 Hz thwack |
+
+Repeated cues vary by a few per cent in pitch and filter each time, so punch spam and an eighteen-hit Gatling never sound stamped out. Levels are deliberately ordered — the whiff sits under the connect, which sits well under the Bazooka — so volume tracks impact.
+
+The effect bus runs hot at 2.3 and feeds a limiter, so cues can sit above the score without clipping when several land together. The limiter also tightens the range: raising the bus lifted the quiet cues far more than the loud ones, which is what makes a punch audible without turning the Bazooka into a wall.
+
+Measured in the running game: Bazooka fire peaks at 0.36 RMS, a connect at 0.23, the Gatling pulse at 0.21, the dash at 0.18, the whiff at 0.12. The busiest moment in the game — a full Gatling burst over the phase-two battle cue — peaks at 0.35 combined, leaving 0.65 of headroom, with effects sitting about 1.3x above the music.
+
+`tools/verify_music.cjs` also checks the effects: it reads every `emit()` in `core.js` and asserts each sounding event has a cue, so a newly added event cannot ship silent. Only `save` and `stage` are silent by design.
+
 ## Heads-up display
 
 One console in the upper-left carries the straw-hat crest, Luffy's name, the berry count, current/maximum health, the health track, the three special segments, the dash cooldown and both special-move keys. The health track pulses its rim at one health point. A full special segment shimmers. Gum-Gum Gatling shows a padlock until Buggy is defeated, and an `LVL` badge appears below the console once Luffy is past level one. The health track's segment dividers follow max health, so a new segment reads as a real segment rather than a re-scaled fifth. The boss console at the bottom of the screen uses the same plate, lettering and palette: Buggy's name, the current phase, a red health fill, a pale trail that drains a beat later so a heavy hit stays readable, and a gold tick at the half-health point where he splits into phase two. It appears only once the encounter starts.
@@ -92,7 +133,7 @@ The circus tent art stops at world y 413.6 while the arena floor is at 430, whic
 
 ## Travel signs
 
-Every stage exit is marked by a wooden signpost: a planked board with iron straps, nail heads and a carved destination name, on a grained post set in an earth mound. The name and the direction chevron tell you where the marker leads before you press E. Boards are generated by `assets/chapter-01/ui/build_hud.py` into `assets/chapter-01/props/`, and the lettering comes from the same 3 x 5 pixel font as the HUD, which now carries the full alphabet so any label can be set at runtime.
+Every stage exit is marked by a wooden signpost: a planked board with iron straps, nail heads and a carved destination name, on a grained post braced at the foot. The post runs to the very bottom row of the asset, because the sign is drawn with its bottom edge on the ground line — empty rows there read as the post hovering, which is exactly what an earlier version did. Angled braces rather than an earth mound, so the foot reads correctly on planking, stone and the Sunny's grass alike. The name and the direction chevron tell you where the marker leads before you press E. Boards are generated by `assets/chapter-01/ui/build_hud.py` into `assets/chapter-01/props/`, and the lettering comes from the same 3 x 5 pixel font as the HUD, which now carries the full alphabet so any label can be set at runtime.
 
 Sign labels are set at a wider advance than HUD numbers, because world text passes through the 1.35x camera zoom and tight letters run together. The board is sized so the longest label still clears the iron straps. No label uses W, M or N: three pixels is not enough width to separate those from H once the zoom blurs them, so the rooftop route is signed ROOFS rather than TOWN and the hub is SHIP rather than SUNNY. The same glyphs are fine in the HUD, which draws at 1:1 screen scale.
 
@@ -106,7 +147,7 @@ The deck railing stays in front of the crew. Its balusters stop at world y 397 w
 
 Existing checkpoint IDs and boss progression are preserved by this update. Saved checkpoints use their new map positions; old berry satchels are placed on nearby reachable static ground if the map layout has changed.
 
-The browser stores a versioned save under `straw-hat-first-voyage-v1`: last rested checkpoint, saved berries, dropped satchel and Buggy's permanent defeat flag. Resting, death, berry recovery and boss victory write saves. Reload resumes at the saved checkpoint with full health; ordinary enemies reset. New voyage replaces this prototype's save. Browser storage is local to the browser/profile and site origin.
+The browser stores a versioned save under `straw-hat-first-voyage-v1`. That key keeps the project's earlier working title on purpose: renaming it would orphan every save already in a player's browser, and the string is internal — nothing shows it. Leave it alone unless you also write a migration that reads the old key. It holds: last rested checkpoint, saved berries, dropped satchel and Buggy's permanent defeat flag. Resting, death, berry recovery and boss victory write saves. Reload resumes at the saved checkpoint with full health; ordinary enemies reset. New voyage replaces this prototype's save. Browser storage is local to the browser/profile and site origin.
 
 ## Implementation and checks
 

@@ -5,11 +5,12 @@ const canvas=document.getElementById('game'),ctx=canvas.getContext('2d'),$=id=>d
 const shell=document.querySelector('.game-shell');
 const SAVE_KEY='straw-hat-first-voyage-v1',images={},keys=new Set();
 let game,started=false,paused=false,loaded=false,last=0,accumulator=0,saved=null,saveAvailable=true;
-let camera={x:0,y:170},pointer={x:650,y:290},pressed={},shake=0,sound=false,audioContext=null;
+let camera={x:0,y:170},pointer={x:650,y:290},pressed={},shake=0,sound=true,audioContext=null;
+let music=true,scoreTrack=null;
 try{saved=PirateGame.validSave(JSON.parse(localStorage.getItem(SAVE_KEY)));}catch{saveAvailable=false;}
 game=new Game(saved);game.events=[];
 // Bump when regenerated art must defeat a cached copy; script ?v= tags do not cover asset files.
-const ASSET_V='arena4';
+const ASSET_V='sign7';
 function load(key,path){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>resolve(key);im.src='../assets/chapter-01/'+path+'?v='+ASSET_V;});}
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
@@ -24,9 +25,9 @@ Promise.all(assets.map(([key,path])=>load(key,path))).then(results=>{
  loaded=true;$('loading').textContent='Crew ready. Click to begin.';$('start').disabled=false;
  if(saved){$('resume').hidden=false;$('start').textContent='New voyage';}
 });
-function begin(fresh){game=new Game(fresh?null:saved);game.events=[];started=true;paused=false;keys.clear();pressed={};$('menu').hidden=true;$('pause-button').disabled=false;camera=targetCamera();canvas.focus();if(fresh){try{localStorage.setItem(SAVE_KEY,JSON.stringify(game.save()));}catch{saveAvailable=false;}}}
+function begin(fresh){game=new Game(fresh?null:saved);game.events=[];started=true;paused=false;keys.clear();pressed={};$('menu').hidden=true;$('pause-button').disabled=false;camera=targetCamera();canvas.focus();scoreTrack=null;if(music||sound)audio();if(music)scoreFor(true);if(fresh){try{localStorage.setItem(SAVE_KEY,JSON.stringify(game.save()));}catch{saveAvailable=false;}}}
 $('start').onclick=()=>begin(true);$('resume').onclick=()=>begin(false);
-function pause(value){if(!started)return;if(game.resting){if(!value)leaveRest();return;}paused=value;keys.clear();pressed={};$('pause-menu').hidden=!paused;$('pause-button').textContent=paused?'Resume · Esc':'Pause · Esc';if(!paused)canvas.focus();if(paused&&locked)document.exitPointerLock();else requestLock();syncFullscreen();}
+function pause(value){if(!started)return;if(game.resting){if(!value)leaveRest();return;}paused=value;keys.clear();pressed={};$('pause-menu').hidden=!paused;$('pause-button').textContent=paused?'Resume · Esc':'Pause · Esc';if(!paused)canvas.focus();if(paused&&locked)document.exitPointerLock();else requestLock();Music.duck(paused);syncFullscreen();}
 function showRest(){paused=true;keys.clear();pressed={};accumulator=0;$('pause-menu').hidden=true;$('rest-menu').hidden=false;$('pause-button').textContent='Resume · Esc';if(locked)document.exitPointerLock();syncFullscreen();
  const list=$('travel-list');list.replaceChildren();for(const v of game.visited){const cp=STAGES[v.stage].checkpoints.find(c=>c.id===v.id);if(!cp)continue;const btn=document.createElement('button');btn.textContent=cp.name;btn.disabled=v.stage===game.checkpoint.stage&&v.id===game.checkpoint.id;btn.onclick=()=>{if(game.travel(v.stage,v.id)){processEvents();camera=targetCamera();showRest();}};list.append(btn);} $('leave-rest').focus();}
 function leaveRest(){game.closeRest();$('rest-menu').hidden=true;paused=false;accumulator=0;keys.clear();pressed={};$('pause-button').textContent='Pause · Esc';canvas.focus();syncFullscreen();}
@@ -58,8 +59,13 @@ function syncFullscreen(){const on=fullscreen();
 if(shell.requestFullscreen){for(const id of ['fullscreen','fullscreen-menu'])$(id).onclick=toggleFullscreen;
  document.addEventListener('fullscreenchange',()=>{if(fullscreen())canvas.focus();else if(started)pause(true);syncFullscreen();});
 }else for(const id of ['fullscreen','fullscreen-menu'])$(id).hidden=true;
-$('sound').onclick=()=>{sound=!sound;$('sound').textContent=sound?'Sound on':'Sound off';$('sound').setAttribute('aria-pressed',sound);if(sound){audioContext ||= new (window.AudioContext||window.webkitAudioContext)();audioContext.resume();}};
-function tone(freq,duration=.08,type='triangle',volume=.03){if(!sound||!audioContext)return;const o=audioContext.createOscillator(),g=audioContext.createGain();o.type=type;o.frequency.value=freq;g.gain.setValueAtTime(volume,audioContext.currentTime);g.gain.exponentialRampToValueAtTime(.0001,audioContext.currentTime+duration);o.connect(g);g.connect(audioContext.destination);o.start();o.stop(audioContext.currentTime+duration);}
+// One context feeds both the blips and the score; it can only start inside a user gesture.
+function audio(){audioContext ||= new (window.AudioContext||window.webkitAudioContext)();
+ if(audioContext.state==='suspended')audioContext.resume();
+ Music.attach(audioContext);Sfx.attach(audioContext);Sfx.setEnabled(sound);return audioContext;}
+$('sound').onclick=()=>{sound=!sound;$('sound').textContent=sound?'Sound on':'Sound off';$('sound').setAttribute('aria-pressed',sound);if(sound)audio();Sfx.setEnabled(sound);canvas.focus();};
+$('music').onclick=()=>{music=!music;$('music').textContent=music?'Music on':'Music off';$('music').setAttribute('aria-pressed',String(music));
+ if(music){audio();scoreFor(true);}else Music.stop();canvas.focus();};
 window.addEventListener('keydown',e=>{
  if(e.code==='Escape'){if(fullscreen())return;e.preventDefault();if(!e.repeat)pause(!paused);return;}
  if(!started||paused||document.activeElement!==canvas)return;
@@ -79,21 +85,33 @@ function aimAt(e){const r=canvas.getBoundingClientRect();
 shell.addEventListener('pointermove',aimAt);
 shell.addEventListener('pointerdown',e=>{if(e.button!==0||e.target.closest('.overlay'))return;canvas.focus();aimAt(e);if(started&&!paused)pressed.attack=true;requestLock();});
 canvas.addEventListener('contextmenu',e=>e.preventDefault());
+// Hub cue on the ship, march on the routes. The arenas pick their cue from the fight itself.
+const STAGE_TRACK={sunny:'hub',dock:'stage',streets:'stage',syrup:'stage'};
+const ARENA={circus:1,mansion:1};
+// True only while the captain is actually up: he has spawned, the player has crossed the trigger
+// that raises his health bar, and he is still standing.
+function bossFightOn(){const b=game.boss;
+ return !!b&&game.bossStarted&&b.state!=='defeated'&&b.hp>0;}
+function scoreFor(force){if(!music||!started)return;
+ const b=game.boss,fighting=bossFightOn();
+ let want;
+ if(fighting)want='boss';
+ // In an arena: the march carries in over the approach, and the calm cue takes over once he is down.
+ else if(ARENA[game.stage])want=(b&&b.state!=='defeated'&&b.hp>0)?'stage':'hub';
+ else want=STAGE_TRACK[game.stage]||'stage';
+ Music.setIntensity(fighting&&b.phase>1?2:1);
+ if(want!==scoreTrack||force){scoreTrack=want;Music.play(want);}
+}
 function targetCamera(){const p=game.player;return {x:clamp(p.x-VIEW_W*.44+(Math.abs(p.vx)>30?Math.sign(p.vx)*32:0),0,Math.max(0,game.world.width-VIEW_W)),y:clamp(p.y-300,-100,game.world.floor-300)};}
 function processEvents(){for(const e of game.events){
+ // Every gameplay event gets its cue from sfx.js; only the ones with side effects are listed here.
+ Sfx.play(e.type,e);
  if(e.type==='save'){try{localStorage.setItem(SAVE_KEY,JSON.stringify(e.data));saved=e.data;}catch{saveAvailable=false;}}
- if(e.type==='stage'){camera=targetCamera();pressed={};}
- if(e.type==='heal')tone(720,.2);
- if(e.type==='hurt'){shake=.18;tone(90,.14,'sawtooth');}
- if(e.type==='hit')tone(190,.06,'square',.018);
- if(e.type==='punch')tone(330,.055);
- if(e.type==='dash')tone(550,.07,'sawtooth',.014);
- if(e.type==='rest'){showRest();tone(620,.25);setTimeout(()=>tone(830,.3),100);}
- if(e.type==='meter-bar')tone(440+e.bars*160,.15);
- if(e.type==='special-start')tone(e.kind==='bazooka'?170:240,.22,'sawtooth',.018);
- if(e.type==='special-pulse'){if(e.kind==='bazooka'){shake=.22;tone(70,.22,'sawtooth',.04);}else tone(210+e.index%3*45,.05,'square',.014);}
- if(e.type==='coin')tone(920,.08);
- if(e.type==='victory'){tone(550,.5);setTimeout(()=>tone(830,.6),160);}
+ if(e.type==='stage'){camera=targetCamera();pressed={};scoreFor();}
+ if(e.type==='hurt')shake=.18;
+ if(e.type==='rest')showRest();
+ if(e.type==='boom')shake=.16;
+ if(e.type==='special-pulse'&&e.kind==='bazooka')shake=.22;
  }game.events=[];}
 function image(key,x,y,w,h,alpha=1){const im=images[key];if(!im)return;ctx.save();ctx.globalAlpha=alpha;ctx.drawImage(im,Math.round(x),Math.round(y),w,h);ctx.restore();}
 function frame(key,i,x,y,scale,flip=false,parts=false,alpha=1){const spec=PACK.sprites[key]||PACK.props[key];if(!spec||!images[key])return;
@@ -178,7 +196,9 @@ const SIGN={w:84,h:76,label:7,arrow:17,arrowW:14,arrowH:9,advance:10};
 // No label uses W, M or N: three pixels wide is not enough to tell those apart from H at world scale.
 const SIGN_LABEL={sunny:'SHIP',dock:'DOCK',streets:'ROOFS',circus:'CIRCUS',syrup:'SYRUP',mansion:'KURO'};
 function drawExits(bob){for(const e of game.world.exits){if(e.requiresBuggy&&!game.buggyDefeated)continue;if((game.stage==='circus'||game.stage==='mansion')&&game.boss&&game.boss.state!=='defeated')continue;
- const x=Math.round(e.x-camera.x),y=Math.round(e.y-camera.y+bob),top=y-SIGN.h;
+ // Sink the foot a couple of pixels past the ground line so the mound bites into the floor's
+ // bright top lip instead of leaving a hairline seam against it.
+ const x=Math.round(e.x-camera.x),y=Math.round(e.y-camera.y+bob),top=y-SIGN.h+2;
  image('sign-post',x-SIGN.w/2,top,SIGN.w,SIGN.h);
  glyphs(SIGN_LABEL[e.to]||'TRAVEL',x,top+SIGN.label,'center',SIGN.advance);
  // Return exits sit at the low end of every stage, so the board points the way out.
@@ -320,6 +340,6 @@ function tick(now){const dt=Math.min(.1,(now-(last||now))/1000);last=now;
  // Pale trail follows the red fill down, so a Bazooka's chunk of damage stays visible for a beat.
  const bossHp=game.boss&&game.bossStarted?game.boss.hp/game.boss.maxHp:1;
  bossTrail=bossHp>bossTrail?bossHp:Math.max(bossHp,bossTrail-dt*.5);
- render();statusTime+=dt;if(statusTime>.2){statusTime=0;$('status').textContent=started?game.world.name+' · Health '+game.hp+'/'+game.maxHp+' · '+game.berries+' berries'+(paused?' · Paused':''):'Ready at the Sunny';const zone=[...(game.world.zones||[])].reverse().find(z=>game.player.x>=z.x);const nearby=game.context();$('game-info').textContent=!saveAvailable?'Browser saving is unavailable. Keep this tab open.':game.messageTime>0?game.message:nearby?.kind==='exit'?nearby.label:zone?zone.name:'Explore the Sunny, then travel from the lower deck.';for(const kind of ['bazooka','gatling'])$(kind).disabled=!started||paused||game.dead>0||!!game.player.special||!game.player.grounded||game.player.stairs||game.player.attackCd>0||game.player.dash>0||game.meter<SPECIALS[kind].cost||(kind==='gatling'&&!game.buggyDefeated);$('gatling').textContent=game.buggyDefeated?'R · Gatling · 3 bars':'Gatling · Defeat Buggy to unlock';$('charge').textContent=Math.floor(game.meter/100)+' / 3 bars · '+game.meter+' / 300';$('charge').setAttribute('aria-valuenow',game.meter);canvas.dataset.meter=String(game.meter);canvas.dataset.special=game.player.special?.kind||'';canvas.dataset.stage=game.stage;canvas.dataset.playerX=game.player.x.toFixed(1);canvas.dataset.playerY=game.player.y.toFixed(1);canvas.dataset.grounded=String(game.player.grounded);canvas.dataset.paused=String(paused);syncFullscreen();}
+ render();statusTime+=dt;if(statusTime>.2){statusTime=0;$('status').textContent=started?game.world.name+' · Health '+game.hp+'/'+game.maxHp+' · '+game.berries+' berries'+(paused?' · Paused':''):'Ready at the Sunny';const zone=[...(game.world.zones||[])].reverse().find(z=>game.player.x>=z.x);const nearby=game.context();$('game-info').textContent=!saveAvailable?'Browser saving is unavailable. Keep this tab open.':game.messageTime>0?game.message:nearby?.kind==='exit'?nearby.label:zone?zone.name:'Explore the Sunny, then travel from the lower deck.';for(const kind of ['bazooka','gatling'])$(kind).disabled=!started||paused||game.dead>0||!!game.player.special||!game.player.grounded||game.player.stairs||game.player.attackCd>0||game.player.dash>0||game.meter<SPECIALS[kind].cost||(kind==='gatling'&&!game.buggyDefeated);$('gatling').textContent=game.buggyDefeated?'R · Gatling · 3 bars':'Gatling · Defeat Buggy to unlock';$('charge').textContent=Math.floor(game.meter/100)+' / 3 bars · '+game.meter+' / 300';$('charge').setAttribute('aria-valuenow',game.meter);canvas.dataset.meter=String(game.meter);canvas.dataset.special=game.player.special?.kind||'';canvas.dataset.stage=game.stage;canvas.dataset.playerX=game.player.x.toFixed(1);canvas.dataset.playerY=game.player.y.toFixed(1);canvas.dataset.grounded=String(game.player.grounded);canvas.dataset.paused=String(paused);syncFullscreen();scoreFor();}
  requestAnimationFrame(tick);}
 requestAnimationFrame(tick);
