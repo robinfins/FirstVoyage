@@ -1,0 +1,54 @@
+[
+  {
+    "file": "syrup-dusk-sky.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "alpha_extrema": null
+  },
+  {
+    "file": "syrup-village-midground.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "alpha_extrema": [
+      0,
+      254
+    ]
+  },
+  {
+    "file": "syrup-woodland-foreground.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "alpha_extrema": [
+      0,
+      254
+    ]
+  },
+  {
+    "file": "black-cat-pirate-poses.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "alpha_extrema": [
+      0,
+      254
+    ]
+  },
+  {
+    "file": "kuro-attack-poses.png",
+    "size": [
+      1536,
+      1024
+    ],
+    "alpha_extrema": [
+      0,
+      254
+    ]
+  }
+]

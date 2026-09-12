@@ -10,6 +10,7 @@ game=new Game(saved);game.events=[];
 function load(key,path){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>resolve(key);im.src='../assets/chapter-01/'+path;});}
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
+assets.push(['luffy-motion','motion/luffy-motion.png'],['luffy-stride','motion/luffy-stride.png']);
 assets.push(['terrain','terrain/pirate-terrain-atlas.png'],['sunny-rails','layers/sunny-rails-foreground.png']);
 for(const name of ['hud-console','hud-health-fill','hud-health-grid','hud-meter-fill','hud-meter-fill-hot','hud-dash-fill','hud-glyphs','hud-lock','hud-coin','hud-pistol-stamp','hud-boss-frame','hud-boss-fill','hud-boss-trail','hud-boss-grid'])assets.push([name,'ui/'+name+'.svg']);
 Promise.all(assets.map(([key,path])=>load(key,path))).then(results=>{
@@ -135,7 +136,7 @@ function drawExits(bob){for(const e of game.world.exits){if(game.stage==='circus
  const x=e.x-camera.x,y=e.y-camera.y+bob;ctx.fillStyle='#3c3031';ctx.fillRect(x-3,y-53,6,53);ctx.fillStyle='#d2a463';ctx.fillRect(x-20,y-55,42,23);text(e.to==='sunny'?'HOME':'→',x,y-39,13,'#2a2730','center');
  }
 }
-function drawPlayer(bob){const p=game.player;if(p.special){SpecialArt.draw(ctx,images.luffy,p.special,p.x-camera.x,p.y-camera.y+bob,.14);return;}let index=0;
+function drawPlayer(bob){const p=game.player;if(p.grounded&&!p.stairs&&!p.dash&&!p.attack&&!p.special&&Math.abs(p.vx)>12){LuffyMotion.drawStride(ctx,images['luffy-stride'],p,p.x-camera.x,p.y-camera.y+bob,p.invuln>0&&Math.floor(game.time*16)%2?.48:1);return;}const pose=LuffyMotion.pose(p);if(pose!==null){const im=images['luffy-motion'],k=.27;ctx.save();ctx.globalAlpha=p.invuln>0&&Math.floor(game.time*16)%2?.48:1;ctx.translate(Math.round(p.x-camera.x),Math.round(p.y-camera.y+bob));ctx.scale(p.facing,1);ctx.drawImage(im,pose%4*384,Math.floor(pose/4)*384,384,384,-192*k,-340*k,384*k,384*k);ctx.restore();return;}if(p.special){SpecialArt.draw(ctx,images.luffy,p.special,p.x-camera.x,p.y-camera.y+bob,.14);return;}let index=0;
  if(p.dash>0)index=3;else if(p.attack)index=4;else if(!p.grounded&&!p.stairs)index=2;else if(Math.abs(p.vx)>20||p.stairs)index=Math.floor(game.time*8)%2?1:0;
  const x=p.x-camera.x,y=p.y-camera.y+bob;const alpha=p.invuln>0&&Math.floor(game.time*16)%2?.48:1;
  // Keep body registration fixed. Reposition the airborne source pose around the body baseline.
@@ -242,7 +243,7 @@ function render(){ctx.imageSmoothingEnabled=false;ctx.save();ctx.scale(ZOOM,ZOOM
 let statusTime=0;
 function tick(now){const dt=Math.min(.1,(now-(last||now))/1000);last=now;
  if(started&&!paused&&loaded){accumulator+=dt;while(accumulator>=1/120){
-  game.step(1/120,{...pressed,left:keys.has('KeyA'),right:keys.has('KeyD'),up:keys.has('KeyW'),down:keys.has('KeyS'),aim:{x:pointer.x/ZOOM+camera.x,y:pointer.y/ZOOM+camera.y}});pressed={};processEvents();accumulator-=1/120;
+  game.step(1/120,{...pressed,left:keys.has('KeyA'),right:keys.has('KeyD'),up:keys.has('KeyW'),down:keys.has('KeyS'),aim:{x:pointer.x/ZOOM+camera.x,y:pointer.y/ZOOM+camera.y}});pressed={};LuffyMotion.update(game.player,1/120);processEvents();accumulator-=1/120;
  }const target=targetCamera();camera.x+=(target.x-camera.x)*Math.min(1,dt*6);camera.y+=(target.y-camera.y)*Math.min(1,dt*5);shake=Math.max(0,shake-dt);
  }else accumulator=0;
  // Pale trail follows the red fill down, so a Bazooka's chunk of damage stays visible for a beat.
