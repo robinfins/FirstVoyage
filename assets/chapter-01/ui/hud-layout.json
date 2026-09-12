@@ -185,6 +185,16 @@
     },
     "left_gutter": 16,
     "left_gutter_note": "Console, level badge and meat panel share one left gutter; the Gear 2 badge sits beside the level badge.",
+    "crest": {
+      "medallion_centre": [
+        31,
+        50
+      ],
+      "size": 48,
+      "luffy": "baked into hud-console.svg (straw hat)",
+      "zoro": "hud-zoro-crest.svg",
+      "note": "The Zoro plate redraws the whole medallion, so it is centred on that point."
+    },
     "meat": {
       "icon": "meat.svg",
       "icon_size": [

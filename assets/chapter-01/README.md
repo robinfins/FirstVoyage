@@ -45,6 +45,8 @@ At logical 640 × 360, foreground waterline is 319; the Sunny deck is about 284.
 - Gameplay console: [panel](ui/hud-console.svg) plus [health fill](ui/hud-health-fill.svg), [meter cell](ui/hud-meter-fill.svg) and its [third-bar variant](ui/hud-meter-fill-hot.svg), [dash fill](ui/hud-dash-fill.svg), [glyph strip](ui/hud-glyphs.svg), [coin](ui/hud-coin.svg) and [lock](ui/hud-lock.svg).
 - Boss console: [panel](ui/hud-boss-frame.svg) with [fill](ui/hud-boss-fill.svg), a delayed [damage trail](ui/hud-boss-trail.svg) and a [phase-two marker](ui/hud-boss-grid.svg) at half health.
 - Legacy 640 × 360 study bars, used by the motion preview only: player [frame](ui/player-frame.svg), [fill](ui/player-fill.svg), [preview](ui/player-full.svg); boss [frame](ui/boss-frame.svg), [fill](ui/boss-fill.svg), [preview](ui/boss-full.svg).
+- Character crest: Luffy's straw hat is baked into the console; Zoro's [three earrings](ui/hud-zoro-crest.svg) are a
+  whole-medallion plate drawn over it.
 - Level badge: [badge](ui/hud-level-badge.svg); health dividers come in one overlay per max health (`hud-health-grid-5/6/7.svg`).
 - World signposts: [board](../chapter-01/props/sign-post.svg) and [direction chevron](../chapter-01/props/sign-arrow.svg), written to `props/` by the same generator.
 - Circus tent footing: [base band](layers/circus-base.svg), written to `layers/`; it closes the gap between the tent hem and the arena floor.

@@ -55,4 +55,23 @@ assert.equal(HUD.gear[0], HUD.stamp[0] + HUD.stamp[2] + consoleLayout.gear.gap_f
   "the gear badge should sit one fixed gap off the level stamp's right edge");
 assert(HUD.gear[0] + HUD.gear[2] <= HUD.x + HUD.w, 'the badge row should not overhang the console above it');
 assert(HUD.meat[1] + HUD.meat[3] <= 540, 'the meat panel should stay on screen');
-console.log('PASS: HUD overlays share one left gutter, the badge row pairs up, and game.js agrees with hud-layout.json.');
+// Zoro's crest plate hides Luffy's baked-in straw hat by redrawing the whole medallion, so it has
+// to stay centred on it and stay at least as large as the disc it is covering -- off by a pixel and
+// a crescent of straw hat shows around the rim.
+const crest = consoleLayout.crest;
+assert.deepEqual(crest.medallion_centre, HUD.medallion, 'hud-layout.json medallion should match game.js');
+assert.equal(crest.size, HUD.crestSize, 'hud-layout.json crest size should match game.js');
+const crestSvg = fs.readFileSync(path.join(__dirname, '../assets/chapter-01/ui/hud-zoro-crest.svg'), 'utf8');
+const dims = crestSvg.match(/width="(\d+)" height="(\d+)"/);
+assert(dims && Number(dims[1]) === HUD.crestSize && Number(dims[2]) === HUD.crestSize,
+  'hud-zoro-crest.svg should be drawn 1:1 at the crest size, not resampled');
+const consoleSvg = fs.readFileSync(path.join(__dirname, '../assets/chapter-01/ui/hud-console.svg'), 'utf8');
+// The console's outermost medallion ring is the widest row of its edge disc: one run as wide as
+// the disc's diameter, centred on it. Find it, and require the crest to cover that span.
+const runs = [...consoleSvg.matchAll(/<rect x="(\d+)" y="(\d+)" width="(\d+)" height="1"/g)]
+  .map(m => ({x: +m[1], y: +m[2], w: +m[3]}))
+  .filter(r => r.y === HUD.medallion[1] && r.x < HUD.medallion[0] && r.x + r.w > HUD.medallion[0]);
+const widest = Math.max(...runs.map(r => r.w));
+assert(widest > 0, 'the console should draw a medallion row through the crest centre');
+assert(HUD.crestSize >= widest, `crest (${HUD.crestSize}px) must cover the medallion (${widest}px)`);
+console.log('PASS: HUD overlays share one left gutter, the badge row pairs up, the Zoro crest covers the medallion, and game.js agrees with hud-layout.json.');

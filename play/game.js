@@ -11,7 +11,7 @@ let music=true,scoreTrack=null;
 try{saved=PirateGame.validSave(JSON.parse(localStorage.getItem(SAVE_KEY)));}catch{saveAvailable=false;}
 game=new Game(saved);game.events=[];
 // Bump when regenerated art must defeat a cached copy; script ?v= tags do not cover asset files.
-const ASSET_V='crew-health1';
+const ASSET_V='zoro-crest1';
 function load(key,path,attempt=0){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>{if(attempt<2)setTimeout(()=>resolve(load(key,path,attempt+1)),250*(attempt+1));else resolve(key);};im.src='../assets/chapter-01/'+path+'?v='+ASSET_V;});}
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
@@ -21,7 +21,7 @@ assets.push(['zoro-oni','../characters/zoro/oni-giri.png']);
 assets.push(['meat','ui/meat.svg'],['jet-stamp','motion/luffy-jet-stamp.png']);
 assets.push(['luffy-motion','motion/luffy-motion.png'],['luffy-stride','motion/luffy-stride.png']);
 assets.push(['terrain','terrain/pirate-terrain-atlas.png'],['sunny-rails','layers/sunny-rails-foreground.png']);
-for(const name of ['hud-console','hud-health-fill','hud-health-grid-5','hud-health-grid-6','hud-health-grid-7','hud-meter-fill','hud-meter-fill-hot','hud-dash-fill','hud-glyphs','hud-lock','hud-coin','hud-boss-frame','hud-boss-fill','hud-boss-trail','hud-boss-grid','hud-level-badge','hud-gear-badge','hud-gear-fill'])assets.push([name,'ui/'+name+'.svg']);
+for(const name of ['hud-zoro-crest','hud-console','hud-health-fill','hud-health-grid-5','hud-health-grid-6','hud-health-grid-7','hud-meter-fill','hud-meter-fill-hot','hud-dash-fill','hud-glyphs','hud-lock','hud-coin','hud-boss-frame','hud-boss-fill','hud-boss-trail','hud-boss-grid','hud-level-badge','hud-gear-badge','hud-gear-fill'])assets.push([name,'ui/'+name+'.svg']);
 assets.push(['sign-post','props/sign-post.svg'],['sign-arrow','props/sign-arrow.svg'],['circus-base','layers/circus-base.svg']);
 Promise.all(assets.map(([key,path])=>load(key,path))).then(results=>{
  const failures=results.filter(Boolean);if(failures.length){$('loading').textContent='Could not load '+failures.join(', ')+'. Reload to retry.';return;}
@@ -399,7 +399,10 @@ const HUD={x:HUD_X,y:14,w:300,h:100,health:[64,29,225,14],meter:[64,51,73,10],me
  dash:[64,67,187,4],valueRight:289,nameRow:10,lockGroup:[162,77,104,18],coin:[110,8],berries:[128,10],
  // The console, the level stamp and the meat panel all start at HUD.x, so the side of the screen
  // reads as one straight gutter.
- stamp:[HUD_X,120,56,22],meat:[HUD_X,466,142,60]};
+ stamp:[HUD_X,120,56,22],meat:[HUD_X,466,142,60],
+ // The crest plate replaces the whole medallion rather than just its emblem, so it is anchored
+ // from the medallion's centre in the console art instead of from the gutter.
+ medallion:[31,50],crestSize:48};
 // The Gear 2 badge is the one thing that is not on the gutter: it shares the level stamp's row and
 // is placed off the stamp's right edge, so the two read as a pair rather than a stack.
 HUD.gear=[HUD.stamp[0]+HUD.stamp[2]+8,HUD.stamp[1],150,22];
@@ -426,7 +429,11 @@ function drawHud(){const ox=HUD.x,oy=HUD.y,p=game.player;
  glyphs(CHARACTERS[game.character].name.toUpperCase(),ox+66,oy+10);
  glyphs(game.character==='zoro'?'ONI GIRI':'BAZOOKA',ox+82,oy+81,'left',7);
  glyphs(game.character==='zoro'?'TIGER TRAP':'GATLING',ox+184,oy+81,'left',7);
- if(game.character==='zoro'){ctx.fillStyle='#17263f';ctx.beginPath();ctx.arc(ox+31,oy+50,20,0,Math.PI*2);ctx.fill();ctx.drawImage(images.zoro,124,64,82,94,ox+16,oy+31,31,36);}
+ // Luffy's straw hat is baked into the console, so Zoro's earrings arrive as a whole medallion
+ // plate drawn over it. Covering a pixel disc with a canvas arc left an antialiased fringe of the
+ // hat around the rim, and a cropped portrait read as a photo pasted into a pixel HUD.
+ if(game.character==='zoro'){const [mx,my]=HUD.medallion,d=HUD.crestSize;
+  image('hud-zoro-crest',ox+mx-d/2,oy+my-d/2,d,d);}
  glyphs(game.hp+'/'+game.maxHp,ox+HUD.valueRight,oy+HUD.nameRow,'right');
  const [mx,my,mw,mh]=HUD.meter;
  for(let i=0;i<3;i++){const left=ox+mx+i*HUD.meterPitch,fraction=clamp((game.meter-i*100)/100,0,1);

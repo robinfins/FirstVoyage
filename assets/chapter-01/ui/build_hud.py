@@ -209,6 +209,44 @@ def meat_icon():
    out.append(rect(x,y,n-x,1,c)); x=n
  return ''.join(out)
 
+# Zoro's three earrings, standing in for the straw hat when he is the one on deck.
+# The plate redraws the whole medallion, not just the emblem: the hat is baked into
+# hud-console.svg, and covering a pixel disc with a canvas arc at runtime leaves an
+# antialiased fringe of it around the rim.
+EAR_EDGE='#2b1a0c'; EAR_LO='#7d4f1e'; EAR='#d9a441'; EAR_HI='#f2d183'
+CREST=48
+def zoro_crest():
+ c=CREST//2
+ out=[disc(c,c,24,EDGE,.95),disc(c,c,22,RIM),disc(c,c,20,'#17263f')]
+ # Round hoops, not tall ovals: a narrow ellipse tapers to a point at this size and reads as a
+ # leaf. Three of them barely fit across a 40px disc, so the outlines are allowed to touch --
+ # what separates them for the eye is three clearly open holes, which also reads as a chain.
+ R,HOLE,CY=6,3,24
+ CXS=(10,24,38)
+ def band(x,y,ox=0,oy=0):
+  for cx in CXS:
+   d=(x-ox-cx)**2+(y-oy-CY)**2
+   if d<=R*R: return d>HOLE*HOLE
+  return False
+ px={}
+ for y in range(CREST):
+  for x in range(CREST):
+   if band(x,y):
+    # Lit from the upper left. On a ring that lights the outer upper-left edge and, across the
+    # hole, the inner lower-right one -- which is what makes it read as metal rather than a disc.
+    # One pixel each: at a three-pixel wall a wider band leaves no gold between the two tones.
+    px[(x,y)]=EAR_HI if not band(x,y,1,1) else EAR_LO if not band(x,y,-1,-1) else EAR
+   elif any(band(x+ox,y+oy) for ox in(-1,0,1) for oy in(-1,0,1)): px[(x,y)]=EAR_EDGE
+ for y in range(CREST):                                   # pack the emblem back into runs
+  x=0
+  while x<CREST:
+   col=px.get((x,y))
+   if col is None: x+=1; continue
+   n=x
+   while n<CREST and px.get((n,y))==col: n+=1
+   out.append(rect(x,y,n-x,1,col)); x=n
+ return ''.join(out)
+
 # ---------------------------------------------------------------- world signposts
 WOOD='#8d5c33'; WOOD_HI='#b8824a'; WOOD_LO='#5d3a1e'; WOOD_EDGE='#33200f'
 IRON='#474350'; IRON_HI='#6f6a7c'; NAIL='#cdc6b2'
@@ -288,7 +326,7 @@ assets=[('player-frame',204,36,player),('player-fill',152,12,pfill),
  ('hud-glyphs',len(GLYPH_ORDER)*8-2,10,glyphs),('hud-lock',11,11,lock),
  ('hud-coin',14,14,coin),('hud-level-badge',LEVEL_W,22,level_badge),
  ('hud-gear-badge',GEAR_W,22,gear_badge),('hud-gear-fill',64,8,gear_fill),
- ('meat',48,38,meat_icon()),
+ ('meat',48,38,meat_icon()),('hud-zoro-crest',CREST,CREST,zoro_crest()),
  ('hud-boss-frame',BW,BH,boss_plate),('hud-boss-fill',528,14,boss_bar_fill),
  ('hud-boss-trail',528,14,boss_trail),('hud-boss-grid',528,14,boss_grid)]
 SIGN_ASSETS=[('sign-post',SIGN_W,SIGN_H,signpost()),('sign-arrow',ARROW_W,ARROW_H,sign_arrow)]
@@ -316,6 +354,8 @@ config={'viewport':[640,360],
   'gear':{'file':'hud-gear-badge.svg','fill':'hud-gear-fill.svg','size':[GEAR_W,22],'screen_anchor':[80,120],'fill_rect':[78,7,64,8],'shares_row_with':'level','gap_from_level_badge':8},
   'left_gutter':16,
   'left_gutter_note':'Console, level badge and meat panel share one left gutter; the Gear 2 badge sits beside the level badge.',
+  'crest':{'medallion_centre':[31,50],'size':CREST,'luffy':'baked into hud-console.svg (straw hat)',
+   'zoro':'hud-zoro-crest.svg','note':'The Zoro plate redraws the whole medallion, so it is centred on that point.'},
   'meat':{'icon':'meat.svg','icon_size':[48,38],'panel_size':[142,60],'screen_anchor':[16,466],'icon_offset':[8,8],'count_anchor':[70,15],'prompt_anchor':[66,31]}},
  'signpost':{'used_by':'play/game.js drawExits','board':'../props/sign-post.svg','size':[SIGN_W,SIGN_H],'label_anchor':[SIGN_W//2,7],'label_advance':10,'arrow':'../props/sign-arrow.svg','arrow_size':[ARROW_W,ARROW_H],'arrow_anchor':[SIGN_W//2,17],'foot_offset':SIGN_H-4},
  'boss_console':{'used_by':'play/game.js, drawn 1:1 in 960x540 screen space','frame':'hud-boss-frame.svg','frame_size':[BW,BH],'screen_anchor':[200,484],
