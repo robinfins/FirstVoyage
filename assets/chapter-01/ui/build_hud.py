@@ -166,15 +166,49 @@ gear_fill=(rect(0,0,64,8,'#e8623c')+rect(0,0,64,1,'#ffd0a0')+rect(0,1,64,2,'#ff8
 # two knuckles and a shaft on the left, one heavy round of meat on the right.
 BONE_EDGE='#2a2331'; BONE='#f2e8cf'; BONE_LO='#c6b795'
 MEAT_EDGE='#2b191d'; MEAT_LO='#7c3220'; MEAT='#ab4b28'; MEAT_HI='#c96a38'; MEAT_LIT='#e59a5c'
+MEAT_DEEP='#5e2418'
 def meat_icon():
- # The bone reads from its silhouette, so the knuckles have to clearly stand proud of the shaft:
- # an earlier version used a thick shaft with small knobs and the whole end merged into one blob.
- out=[rect(7,26,18,7,BONE_EDGE),disc(7,24,6,BONE_EDGE),disc(7,33,6,BONE_EDGE)]
- out+=[rect(8,27,17,5,BONE),disc(7,24,4,BONE),disc(7,33,4,BONE)]
- out+=[rect(8,31,16,1,BONE_LO),disc(6,23,2,'#ffffff')]
- # One heavy round of meat, wider than tall, sitting over the far end of the bone.
- out+=[oval(32,16,15,13,MEAT_EDGE),oval(32,16,13,11,MEAT_LO),oval(32,15,12,10,MEAT)]
- out+=[oval(34,20,9,5,MEAT_LO),oval(28,11,7,5,MEAT_HI),oval(26,10,4,3,MEAT_LIT)]
+ # A circle on a stick reads as a lollipop, so the round is authored as a column-by-column
+ # profile — a narrow neck where the bone enters, swelling to a full end — and then rasterised
+ # into pixels before being packed back into runs. Working in pixels is what lets the shading
+ # be defined as offset copies of the silhouette: a band boundary drawn as a fraction of each
+ # column's height comes out a straight diagonal that splits the shape into two flat facets,
+ # whereas an offset silhouette gives a rim that curves with the form on every side at once.
+ NECK,YC,W,H=16,19,48,38
+ PROFILE=[2,3,4,4,5,6,7,8,9,10,11,12,13,13,14,14,15,15,15,15,15,15,14,14,13,13,12,11,10,8,5]
+ def inside(x,y,ox=0,oy=0):
+  i=x-ox-NECK
+  return 0<=i<len(PROFILE) and abs(y-oy-YC)<=PROFILE[i]
+ px={}
+ for y in range(H):
+  for x in range(W):
+   if inside(x,y):
+    # Light sits up and to the left, so the shadow is what the silhouette misses when slid that
+    # way, and the highlight what it misses when slid the other. Two depths of shadow give the
+    # far edge its turn without a visible seam.
+    if not inside(x,y,-3,-3): c=MEAT_DEEP
+    elif not inside(x,y,-9,-8): c=MEAT_LO
+    elif 20<=x<=38 and y<YC and not inside(x,y,4,4): c=MEAT_HI
+    else: c=MEAT
+    px[(x,y)]=c
+   elif any(inside(x+dx,y+dy) for dx in(-1,0,1) for dy in(-1,0,1)):
+    px[(x,y)]=MEAT_EDGE
+ for x in range(23,30):            # catchlight, kept inside the highlight so it is not a rim
+  for y in range(YC-9,YC-6):
+   if px.get((x,y))==MEAT_HI: px[(x,y)]=MEAT_LIT
+ # Bone: two knuckles and a shaft, running far enough into the round that the neck closes over
+ # its end rather than butting against the silhouette.
+ out=[rect(3,15,20,9,BONE_EDGE),disc(5,14,5,BONE_EDGE),disc(5,24,5,BONE_EDGE)]
+ out+=[rect(4,17,19,5,BONE),disc(5,14,4,BONE),disc(5,24,4,BONE)]
+ out+=[rect(4,21,18,1,BONE_LO),disc(4,13,2,'#ffffff')]
+ for y in range(H):                                       # pack the round back into runs
+  x=0
+  while x<W:
+   c=px.get((x,y))
+   if c is None: x+=1; continue
+   n=x
+   while n<W and px.get((n,y))==c: n+=1
+   out.append(rect(x,y,n-x,1,c)); x=n
  return ''.join(out)
 
 # ---------------------------------------------------------------- world signposts
