@@ -9,7 +9,7 @@ let camera={x:0,y:170},pointer={x:650,y:290},pressed={},shake=0,sound=false,audi
 try{saved=PirateGame.validSave(JSON.parse(localStorage.getItem(SAVE_KEY)));}catch{saveAvailable=false;}
 game=new Game(saved);game.events=[];
 // Bump when regenerated art must defeat a cached copy; script ?v= tags do not cover asset files.
-const ASSET_V='sign5';
+const ASSET_V='arena4';
 function load(key,path){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>resolve(key);im.src='../assets/chapter-01/'+path+'?v='+ASSET_V;});}
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
@@ -18,7 +18,7 @@ assets.push(['meat','ui/meat.svg']);
 assets.push(['luffy-motion','motion/luffy-motion.png'],['luffy-stride','motion/luffy-stride.png']);
 assets.push(['terrain','terrain/pirate-terrain-atlas.png'],['sunny-rails','layers/sunny-rails-foreground.png']);
 for(const name of ['hud-console','hud-health-fill','hud-health-grid-5','hud-health-grid-6','hud-health-grid-7','hud-meter-fill','hud-meter-fill-hot','hud-dash-fill','hud-glyphs','hud-lock','hud-coin','hud-boss-frame','hud-boss-fill','hud-boss-trail','hud-boss-grid','hud-level-badge'])assets.push([name,'ui/'+name+'.svg']);
-assets.push(['sign-post','props/sign-post.svg'],['sign-arrow','props/sign-arrow.svg']);
+assets.push(['sign-post','props/sign-post.svg'],['sign-arrow','props/sign-arrow.svg'],['circus-base','layers/circus-base.svg']);
 Promise.all(assets.map(([key,path])=>load(key,path))).then(results=>{
  const failures=results.filter(Boolean);if(failures.length){$('loading').textContent='Could not load '+failures.join(', ')+'. Reload to retry.';return;}
  loaded=true;$('loading').textContent='Crew ready. Click to begin.';$('start').disabled=false;
@@ -127,7 +127,9 @@ function backgrounds(){if(game.stage==='syrup'||game.stage==='mansion'){image('s
   const shift=-camera.x*.42;
   terrain(1,0,game.world.floor-camera.y-2,960,900,-camera.x*.42,game.world.floor-camera.y,128);ctx.fillStyle='#18233888';ctx.fillRect(0,game.world.floor-camera.y-2,960,900);
   for(let i=Math.floor(camera.x*.42/1060)-1;i<=Math.floor(camera.x*.42/1060)+2;i++)image('orange-town-buildings',i*1060+shift-70,game.world.floor-(game.stage==='streets'?374:340)*.915-camera.y,1240,game.stage==='streets'?374:340,game.stage==='circus'?.36:1);
-  if(game.stage==='circus')image('circus-tent-layer',-40-camera.x*.3,5-camera.y,1160,433);
+  // The tent art ends at world y 413.6 but the floor is at 430; the footing closes that gap.
+  if(game.stage==='circus'){image('circus-tent-layer',-40-camera.x*.3,5-camera.y,1160,433);
+   image('circus-base',-40-camera.x*.3,402-camera.y,1160,36);}
  }
 }
 function terrain(tile,x,y,w,h,anchorX=x,anchorY=y,size=128){
@@ -194,6 +196,12 @@ function drawPlayer(bob){const p=game.player;if(p.grounded&&!p.stairs&&!p.dash&&
   SpecialArt.punch(ctx,images.luffy,p.attack,x,y,scale,alpha);
  }else frame('luffy',index,x,frameY,scale,p.facing<0,false,alpha);
 }
+// Sprite scales, and the measured art height above the feet pivot in cell pixels. Grown pirates
+// stand well clear of Luffy's ~64px; bosses sit above them again.
+const ENEMY_SCALE={cutlass:.189,brute:.221,bomber:.189},CAT_SCALE=.281;
+const ENEMY_ART={cutlass:363,brute:412,bomber:384},CAT_ART={cutlass:273,brute:268,bomber:288};
+// Boss art heights are the tallest frame of each sheet, so a tell never lands inside a raised pose.
+const BOSS_SCALE=.231,BOSS_ART={'buggy-melee':390,'buggy-specials':417,kuro:481};
 function enemyFrame(e){if(e.hit>0)return 7;if(e.state==='wind')return 4;if(e.state==='active')return 5;if(e.state==='recover')return 6;return (Math.abs(e.vx)>25?2:0)+Math.floor(game.time*5)%2;}
 function chapterSprite(key,i,x,y,scale,facing){ctx.save();ctx.translate(Math.round(x),Math.round(y));ctx.scale(facing,1);ctx.drawImage(images[key],i%4*640,Math.floor(i/4)*576,640,576,-320*scale,-536*scale,640*scale,576*scale);ctx.restore();}
 function villageProps(){if(game.stage!=='syrup'&&game.stage!=='mansion')return;const im=images['syrup-props'];for(const x of game.stage==='syrup'?[35,1440,2960,3670]:[15,1120]){const px=x-camera.x;if(px<-180||px>VIEW_W+180)continue;ctx.drawImage(im,0,0,512,540,px-100,430-camera.y-205,200,211);}}
@@ -201,16 +209,18 @@ function villageProps(){if(game.stage!=='syrup'&&game.stage!=='mansion')return;c
 // read the same way as the Orange Town crew.
 function drawEnemy(e){if(e.hp<=0)return;
  const x=e.x-camera.x,y=e.y-camera.y;if(x<-100||x>1060)return;
- const cats=game.stage==='syrup';
+ const cats=game.stage==='syrup',art=cats?CAT_ART:ENEMY_ART,scale=cats?CAT_SCALE:ENEMY_SCALE[e.type];
  if(cats){const row={cutlass:0,brute:1,bomber:2}[e.type],i=e.state==='wind'?2:e.state==='active'?3:Math.abs(e.vx)>25?1:0;
-  chapterSprite('cats',row*4+i,x,y,.24,e.facing);}
- else frame('pirate-'+e.type,enemyFrame(e),x,y,e.type==='brute'?.19:.16,e.facing>0); // source pirate art faces left
- if(e.state==='wind'){text('!',x,y-80,18,cats?'#ffbc72':'#ff9775','center');
+  chapterSprite('cats',row*4+i,x,y,scale,e.facing);}
+ else frame('pirate-'+e.type,enemyFrame(e),x,y,scale,e.facing>0); // source pirate art faces left
+ const head=y-art[e.type]*scale;   // measured art top, so the tell and bar clear the head at any scale
+ if(e.state==='wind'){text('!',x,head-24,18,cats?'#ffbc72':'#ff9775','center');
   ctx.strokeStyle='#ff806077';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x,y-2);ctx.lineTo(x+e.facing*(e.type==='brute'?100:75),y-2);ctx.stroke();}
  // Bars read against spawn health, so a tougher Syrup cutlass still fills the same bar.
- if(e.hp<e.maxHp){ctx.fillStyle='#182137';ctx.fillRect(x-20,y-72,40,4);ctx.fillStyle='#e8a165';ctx.fillRect(x-20,y-72,40*e.hp/e.maxHp,4);}
+ if(e.hp<e.maxHp){ctx.fillStyle='#182137';ctx.fillRect(x-20,head-14,40,4);ctx.fillStyle='#e8a165';ctx.fillRect(x-20,head-14,40*e.hp/e.maxHp,4);}
 }
-function drawBoss(){const b=game.boss;if(!b)return;if(b.kind==='kuro'){const i=b.state==='defeated'?7:b.hit>0?7:b.state==='recover'?6:b.state==='wind'?(b.attack==='slash'?4:b.attack==='flurry'?1:2):b.state==='active'?(b.attack==='slash'?5:3):0;chapterSprite('kuro',i,b.x-camera.x,b.y-camera.y,.21,b.facing);if(b.state==='wind')text('!',b.x-camera.x,b.y-camera.y-110,22,'#ffb785','center');return;}let key='buggy-melee',i=Math.floor(game.time*3)%2;
+function drawBoss(){const b=game.boss;if(!b)return;if(b.kind==='kuro'){const i=b.state==='defeated'?7:b.hit>0?7:b.state==='recover'?6:b.state==='wind'?(b.attack==='slash'?4:b.attack==='flurry'?1:2):b.state==='active'?(b.attack==='slash'?5:3):0;chapterSprite('kuro',i,b.x-camera.x,b.y-camera.y,BOSS_SCALE,b.facing);
+  if(b.state==='wind')text('!',b.x-camera.x,b.y-camera.y-BOSS_ART.kuro*BOSS_SCALE-26,22,'#ffb785','center');return;}let key='buggy-melee',i=Math.floor(game.time*3)%2;
  if(b.state==='defeated'){key='buggy-specials';i=7;}
  else if(b.state==='split'){key='buggy-specials';i=4+Math.floor(game.time*6)%2;}
  else if(b.state==='wind'||b.state==='active'||b.state==='recover'){
@@ -218,9 +228,9 @@ function drawBoss(){const b=game.boss;if(!b)return;if(b.kind==='kuro'){const i=b
   if(['knives','bombs','crossfire'].includes(b.attack)){key='buggy-specials';i=(b.attack==='bombs'?2:0)+Math.min(offset,1);}
   else i=(b.attack==='lunge'||b.attack==='dive'?2:5)+offset;
  }
- frame(key,i,b.x-camera.x,b.y-camera.y,.21,b.facing>0,b.state==='split');
+ frame(key,i,b.x-camera.x,b.y-camera.y,BOSS_SCALE,b.facing>0,b.state==='split');
  if(b.state==='wind'){
-  text('!',b.x-camera.x,b.y-camera.y-112,22,'#ff9978','center');
+  text('!',b.x-camera.x,b.y-camera.y-BOSS_ART[key]*BOSS_SCALE-26,22,'#ff9978','center');
   if(b.attack==='lunge'){ctx.fillStyle='#f2655355';const x=b.x-camera.x;ctx.fillRect(b.facing<0?x-250:x,b.y-camera.y-12,250,12);}
  }
  if(b.attack==='dive'&&['wind','active'].includes(b.state)){

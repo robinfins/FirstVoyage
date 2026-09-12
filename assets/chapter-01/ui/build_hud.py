@@ -1,4 +1,4 @@
-"""Rebuild original pixel-geometry HUD and signpost SVG assets; no raster inputs required."""
+"""Rebuild original pixel-geometry HUD, signpost and scenery SVG assets; no raster inputs required."""
 from pathlib import Path
 import json, math
 OUT=Path(__file__).resolve().parent
@@ -183,6 +183,34 @@ def sign_chevron(color=PARCH):
 sign_arrow=sign_chevron()
 pistol=signpost()
 
+# ---------------------------------------------------------------- circus tent footing
+# The tent art stops at world y 413.6 while the arena floor is at 430, so the tent hung in mid-air.
+# This band fills the gap: the tent's own dark hem, a striped valance, then the earth berm it stands on.
+BASE_W,BASE_H=1160,36
+TENT_DARK='#0d0b19'; VAL_RED='#b8323a'; VAL_CREAM='#e4d8c0'; VAL_SHADE='#7d1f28'
+EARTH_TOP='#8a6a44'; EARTH='#6b5136'; EARTH_LO='#4a3826'; EARTH_DARK='#2f2318'
+ROPE='#8a7a5e'; STAKE='#5a4028'; STAKE_HI='#7d5c3c'
+def circus_base():
+ # Only about 28 of these rows clear the arena floor, so the band stays flat and legible: dark tent
+ # underside, striped valance, then the earth berm. A scalloped hem is lost at this size.
+ out=[rect(0,0,BASE_W,11,TENT_DARK)]                       # the tent underside carries on down
+ out.append(rect(0,17,BASE_W,BASE_H-17,EARTH))             # packed earth berm
+ out.append(rect(0,17,BASE_W,2,EARTH_TOP))
+ out.append(rect(0,27,BASE_W,3,EARTH_LO))
+ out.append(rect(0,30,BASE_W,BASE_H-30,EARTH_DARK))
+ for i in range(0,BASE_W,29):                              # sawdust speckle, deterministic
+  out.append(rect(i+(i//29*7)%23,21+(i//29)%4,2,1,EARTH_TOP))
+ for i in range(0,BASE_W,145):                             # stakes roped back up to the tent
+  x=i+34
+  out.append(rect(x,19,3,8,STAKE)+rect(x,19,1,8,STAKE_HI))
+  for d in range(8): out.append(rect(x-d*2,19-d,2,1,ROPE))
+ for i in range(0,BASE_W,40):                              # striped valance hanging over the berm
+  out.append(rect(i,9,40,8,VAL_RED if (i//40)%2==0 else VAL_CREAM))
+ out.append(rect(0,9,BASE_W,1,VAL_SHADE))                  # crease where fabric meets tent
+ out.append(rect(0,16,BASE_W,1,'#2a1f16'))                 # shadow the valance casts on the earth
+ return ''.join(out)
+LAYER_ASSETS=[('circus-base',BASE_W,BASE_H,circus_base())]
+
 assets=[('player-frame',204,36,player),('player-fill',152,12,pfill),
  ('boss-frame',460,32,boss),('boss-fill',412,8,bfill),
  ('player-full',204,36,player+f'<g transform="translate(38 12)">{pfill}</g>'),
@@ -200,6 +228,9 @@ for name,w,h,body in assets:
 PROPS=OUT.parent/'props'
 for name,w,h,body in SIGN_ASSETS:
  (PROPS/(name+'.svg')).write_text(svg(w,h,body,name.replace('-',' ')))
+LAYERS=OUT.parent/'layers'
+for name,w,h,body in LAYER_ASSETS:
+ (LAYERS/(name+'.svg')).write_text(svg(w,h,body,name.replace('-',' ')))
 
 config={'viewport':[640,360],
  'player':{'frame':'player-frame.svg','fill':'player-fill.svg','frame_size':[204,36],'fill_rect':[38,12,152,12],'screen_anchor':[12,12],'starting_max_health':5,'segments':5,'used_by':'preview/preview.js art study'},
@@ -219,4 +250,4 @@ config={'viewport':[640,360],
   'phase_value_anchor':[540,8]},
  'fill_behavior':'clip width from left by clamp(current / maximum, 0, 1); keep frame unchanged','screen_space':True}
 (OUT/'hud-layout.json').write_text(json.dumps(config,indent=2)+'\n')
-print(f'Created {len(assets)} HUD and {len(SIGN_ASSETS)} signpost SVG assets, plus hud-layout.json')
+print(f'Created {len(assets)} HUD, {len(SIGN_ASSETS)} signpost and {len(LAYER_ASSETS)} scenery SVG assets, plus hud-layout.json')
