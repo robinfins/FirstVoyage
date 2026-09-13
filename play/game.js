@@ -11,13 +11,13 @@ let music=true,scoreTrack=null;
 try{saved=PirateGame.validSave(JSON.parse(localStorage.getItem(SAVE_KEY)));}catch{saveAvailable=false;}
 game=new Game(saved);game.events=[];
 // Bump when regenerated art must defeat a cached copy; script ?v= tags do not cover asset files.
-const ASSET_V='sea1';
+const ASSET_V='zoro-stride3';
 function load(key,path,attempt=0){return new Promise(resolve=>{const im=new Image();im.onload=()=>{images[key]=im;resolve();};im.onerror=()=>{if(attempt<2)setTimeout(()=>resolve(load(key,path,attempt+1)),250*(attempt+1));else resolve(key);};im.src='../assets/chapter-01/'+path+'?v='+ASSET_V;});}
 const required=new Set(['luffy','pirate-cutlass','pirate-brute','pirate-bomber','buggy-melee','buggy-specials','sunny-ship-layer','sunset-sky','distant-islands','orange-town-buildings','circus-tent-layer','ocean-wave-cycle','sunny-flag-cycle','checkpoint-snail']);
 const assets=Object.entries(PACK.files).filter(([k])=>required.has(k)||k.startsWith('buggy-')&&k.includes('-part-'));
 for(const [key,path] of [['kaya-mansion','kaya-mansion-arena-v2.png'],['syrup-sky','syrup-dusk-sky.png'],['syrup-village','cleaned/syrup-village-midground.png'],['syrup-props','cleaned/syrup-woodland-foreground.png'],['cats','cleaned/black-cat-pirate-poses.png'],['kuro','cleaned/kuro-attack-poses.png']])assets.push([key,'../chapter-02/'+path]);
 assets.push(['zoro','../characters/zoro/zoro-atlas.png']);
-assets.push(['zoro-oni','../characters/zoro/oni-giri.png']);
+assets.push(['zoro-oni','../characters/zoro/oni-giri.png'],['zoro-stride','../characters/zoro/zoro-stride.png']);
 assets.push(['meat','ui/meat.svg'],['jet-stamp','motion/luffy-jet-stamp.png']);
 assets.push(['luffy-motion','motion/luffy-motion.png'],['luffy-stride','motion/luffy-stride.png']);
 assets.push(['terrain','terrain/pirate-terrain-atlas.png'],['sunny-rails','layers/sunny-rails-foreground.png']);
@@ -25,7 +25,7 @@ for(const name of ['hud-zoro-crest','hud-console','hud-health-fill','hud-health-
 assets.push(['sign-post','props/sign-post.svg'],['sign-arrow','props/sign-arrow.svg'],['circus-base','layers/circus-base.svg']);
 Promise.all(assets.map(([key,path])=>load(key,path))).then(results=>{
  const failures=results.filter(Boolean);if(failures.length){$('loading').textContent='Could not load '+failures.join(', ')+'. Reload to retry.';return;}
- images.zoro=ZoroArt.prepare(images.zoro,images['zoro-oni']);loaded=true;$('loading').textContent='Crew ready. Click to begin.';$('start').disabled=false;
+ images.zoro=ZoroArt.prepare(images.zoro,images['zoro-oni'],images['zoro-stride']);loaded=true;$('loading').textContent='Crew ready. Click to begin.';$('start').disabled=false;
  if(saved){$('resume').hidden=false;$('start').textContent='New voyage';}
 });
 function begin(fresh){game=new Game(fresh?null:saved);game.events=[];started=true;paused=false;keys.clear();attackHeld=false;blockHeld=false;pressed={};$('menu').hidden=true;$('pause-button').disabled=false;camera=targetCamera();canvas.focus();scoreTrack=null;if(music||sound)audio();if(music)scoreFor(true);if(fresh){try{localStorage.setItem(SAVE_KEY,JSON.stringify(game.save()));}catch{saveAvailable=false;}}}
@@ -193,6 +193,7 @@ function processEvents(){for(const e of game.events){
  if(e.type==='victory'&&e.first)setTimeout(()=>{if(started&&!game.dead)showUnlock(e.boss);},2600);
  if(e.type==='boom')shake=.16;
  if(e.type==='special-pulse'&&['bazooka','jetstamp'].includes(e.kind))shake=.22;
+ if(e.type==='special-pulse'&&['onigiri','tigertrap'].includes(e.kind))shake=e.kind==='tigertrap'?.18:.1;
  if(e.type==='gear-active'||e.type==='kuro-phase')shake=.12;
  }game.events=[];}
 function image(key,x,y,w,h,alpha=1){const im=images[key];if(!im)return;ctx.save();ctx.globalAlpha=alpha;ctx.drawImage(im,Math.round(x),Math.round(y),w,h);ctx.restore();}
@@ -515,7 +516,7 @@ function updateStatus(){
 }
 function tick(now){const dt=Math.min(.1,(now-(last||now))/1000);last=now;
  if(started&&!paused&&loaded){accumulator+=dt;while(accumulator>=1/120&&!paused){
-  game.step(1/120,{...pressed,attackHeld,block:blockHeld,left:keys.has('KeyA'),right:keys.has('KeyD'),up:keys.has('KeyW'),down:keys.has('KeyS'),aim:{x:pointer.x/ZOOM+camera.x,y:pointer.y/ZOOM+camera.y}});pressed={};LuffyMotion.update(game.player,1/120);processEvents();accumulator-=1/120;
+  game.step(1/120,{...pressed,attackHeld,block:blockHeld,left:keys.has('KeyA'),right:keys.has('KeyD'),up:keys.has('KeyW'),down:keys.has('KeyS'),aim:{x:pointer.x/ZOOM+camera.x,y:pointer.y/ZOOM+camera.y}});pressed={};LuffyMotion.update(game.player,1/120);if(game.character==='zoro')ZoroArt.update(game.player,1/120);processEvents();accumulator-=1/120;
  }const target=targetCamera();camera.x+=(target.x-camera.x)*Math.min(1,dt*6);camera.y+=(target.y-camera.y)*Math.min(1,dt*5);shake=Math.max(0,shake-dt);
  }else accumulator=0;
  // Pale trail follows the red fill down, so a Bazooka's chunk of damage stays visible for a beat.

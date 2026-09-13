@@ -191,3 +191,11 @@ Kaya's mansion now follows the user's series reference, rendered in the game's p
 At half health Kuro immediately discards his first-phase attacks and enters a 1.05-second telegraphed phase change. Phase two uses a distinct shuffled set: three retargeted pursuit dashes, two aimed pounces, two staggered claw volleys, and a faster flurry. Each combo has its own short follow-up tells and a final 0.75-second recovery opening. Ranged attacks now release from his hand during the claw sweep, then return to standing, instead of using a lunge or collapse pose.
 
 Jet Stamp uses four new full-body kick poses and deals exactly the same damage as Bazooka (12× current level damage), once per enemy. It impacts at 0.25 seconds and completes its retraction by 0.72 seconds. Gear 2 ends mechanically immediately on Jet Stamp, or at expiry, with one exit cue and a 0.65-second visual steam/tint fade. Stronger transformation entry cues and a distinct kick windup/impact cue accompany the move.
+
+## Zoro movement and special animation polish
+
+Built on desktop commit `55a9a32`. Zoro uses eight registered full-body run drawings, replacing the three similar original run keys. Cadence follows the shared distance-based animation clock. Jump, guard, hurt and attack poses retain priority.
+
+Oni Giri preserves the approved crossed-sword poses, with a compressed anticipation, movement-sampled afterimages, three cutting trails, release flash and braking dust. Tiger Trap keeps its existing windup/chop poses while adding body weight transfer, blade glints, sweeping ribbons, ground impact sparks and eased recovery. Both receive a brief impact shake. Physics, special costs, damage, hit windows and parry rules are unchanged.
+
+`play/zoro-motion-review.html` compares idle, stride and both techniques with pause, speed, scrub and facing controls. `node tools/verify_zoro_motion.cjs` checks cadence across frame rates, bounded trails and cancellation cleanup, and finite rendering with balanced canvas state. Crew and shared-motion regression checks pass; the browser review covers both directions and Q/R activation in the game. Artwork provenance and the exact generation prompt are in `assets/characters/zoro/PROMPTS.md`.
